@@ -1,0 +1,271 @@
+=================================================================
+PHASE API_JOBS : Adaptation Stripe pour Paiements de Missions
+=================================================================
+
+Date: 2026-01-09
+Agent: AGENT_TRANSPORT_API_JOBS
+
+=================================================================
+FICHIERS MODIFIÉS
+=================================================================
+
+1. Routes API Stripe Modifiées
+-------------------------------
+/src/app/api/stripe/checkout/route.ts
+  - Ajout vérification status DELIVERED
+  - Prévention double-paiement
+  - Support types de mission (DAY, HALF_DAY, WEEK)
+  - Métadonnées enrichies
+
+/src/app/api/stripe/webhook/route.ts
+  - Gestion checkout.session.completed → COMPLETED
+  - Gestion payment_intent.succeeded → COMPLETED
+  - Gestion payment_intent.payment_failed
+  - Gestion charge.refunded → CANCELLED
+  - Incrémentation totalDeliveries
+  - Logging amélioré
+
+2. Bibliothèques et Utilitaires Modifiés
+-----------------------------------------
+/src/lib/stripe.ts
+  - createMissionPaymentIntent()
+  - createRefund()
+  - getPaymentIntentStatus()
+  - transferToDriver()
+  - Documentation JSDoc
+
+/.env.example
+  - Commentaires Stripe clarifiés
+
+=================================================================
+NOUVEAUX FICHIERS CRÉÉS
+=================================================================
+
+1. Routes API Stripe Nouvelles
+-------------------------------
+/src/app/api/stripe/payment-intent/route.ts
+  - POST: Créer PaymentIntent
+  - GET: Statut PaymentIntent
+
+/src/app/api/stripe/refund/route.ts
+  - POST: Créer remboursement
+  - GET: Infos remboursement
+
+2. Types TypeScript
+-------------------
+/src/lib/types/stripe.ts
+  - Types: StripePaymentStatus, StripeRefundReason, etc.
+  - Interfaces: PaymentIntentResponse, RefundResponse, etc.
+  - Fonctions: calculateMissionPrice(), formatPrice(), etc.
+  - Labels: MISSION_TYPE_LABELS, PAYMENT_STATUS_LABELS, etc.
+
+3. Tests
+--------
+/src/lib/types/__tests__/stripe.test.ts
+  - Tests unitaires pour utilitaires Stripe
+  - Tests de calcul de prix
+  - Tests de formatage
+  - Tests de conversion
+  - Tests de statuts
+
+4. Documentation
+----------------
+/STRIPE_INTEGRATION.md
+  - Documentation complète de l'intégration
+  - Architecture et flux de paiement
+  - Documentation de toutes les routes
+  - Configuration webhooks
+  - Stripe Connect pour chauffeurs
+  - Guide de tests
+
+/PHASE_API_JOBS_STRIPE.md
+  - Résumé de la phase
+  - Objectifs atteints
+  - Fichiers modifiés détaillés
+  - Flux de paiement complet
+  - Cas d'usage
+  - Conformité Prisma
+
+/STRIPE_FRONTEND_EXAMPLES.md
+  - Exemples React/TypeScript
+  - Checkout Session
+  - PaymentIntent + Stripe Elements
+  - Vérification statut
+  - Remboursements
+  - Gestion d'erreurs
+  - Liste missions payables
+
+/API_ROUTES_SUMMARY.md
+  - Résumé de toutes les routes API
+  - Stripe, Jobs, Bookings, Auth, Users
+  - Champs en entrée/sortie
+  - Codes d'erreur
+  - Headers requis
+  - Configuration webhooks
+
+/PHASE_STRIPE_FILES.txt
+  - Ce fichier (liste des modifications)
+
+=================================================================
+ROUTES API CRÉÉES/MODIFIÉES
+=================================================================
+
+Routes Stripe:
+--------------
+POST   /api/stripe/checkout          → Créer Checkout Session
+POST   /api/stripe/payment-intent    → Créer PaymentIntent
+GET    /api/stripe/payment-intent    → Statut PaymentIntent
+POST   /api/stripe/refund            → Créer remboursement
+GET    /api/stripe/refund            → Infos remboursement
+POST   /api/stripe/webhook           → Webhook Stripe (modifié)
+
+Routes Jobs (existantes, non modifiées):
+-----------------------------------------
+GET    /api/jobs                     → Liste missions
+POST   /api/jobs                     → Créer mission
+GET    /api/jobs/[id]                → Détails mission
+PATCH  /api/jobs/[id]                → Modifier mission
+DELETE /api/jobs/[id]                → Supprimer mission
+POST   /api/jobs/[id]/apply          → Postuler (Driver)
+
+Routes Bookings (existantes, non modifiées):
+---------------------------------------------
+GET    /api/bookings                 → Liste réservations
+GET    /api/bookings/[id]            → Détails réservation
+PATCH  /api/bookings/[id]            → Modifier réservation
+POST   /api/bookings/[id]/review     → Laisser avis
+
+=================================================================
+MODÈLE DE DONNÉES (Prisma - Non modifié)
+=================================================================
+
+Job:
+  - typeMission: MissionType (DAY, HALF_DAY, WEEK)
+  - dayRate: Int (centimes)
+
+Booking:
+  - agreedPrice: Int (centimes)
+  - stripePaymentId: String?
+  - stripePaymentStatus: String?
+  - paidAt: DateTime?
+  - status: JobStatus
+
+DriverProfile:
+  - stripeAccountId: String?
+  - totalDeliveries: Int
+
+=================================================================
+FLUX DE PAIEMENT
+=================================================================
+
+1. Mission créée (Company)     → status: OPEN
+2. Candidature (Driver)         → status: ASSIGNED
+3. Livraison (Driver)           → status: DELIVERED
+4. Paiement (Company)           → PaymentIntent créé
+5. Confirmation (Webhook)       → status: COMPLETED + paidAt
+6. Transfert (Stripe Connect)   → Fonds au driver
+
+=================================================================
+TYPES DE MISSION ET TARIFICATION
+=================================================================
+
+DAY       → dayRate                (ex: 150€)
+HALF_DAY  → dayRate / 2            (ex: 75€)
+WEEK      → dayRate * 5            (ex: 750€)
+
+Le montant final est stocké dans booking.agreedPrice (en centimes)
+
+=================================================================
+SÉCURITÉ
+=================================================================
+
+✓ Authentification NextAuth sur toutes les routes
+✓ Vérification des rôles (Company vs Driver)
+✓ Vérification de propriété (Job owner)
+✓ Validation Zod des payloads
+✓ Prévention double-paiement
+✓ Webhook signature verification
+✓ Logging des événements Stripe
+
+=================================================================
+VARIABLES D'ENVIRONNEMENT REQUISES
+=================================================================
+
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+=================================================================
+TESTS
+=================================================================
+
+Tests unitaires:
+  /src/lib/types/__tests__/stripe.test.ts
+
+Tester avec Stripe CLI:
+  stripe listen --forward-to localhost:3000/api/stripe/webhook
+
+Cartes de test:
+  4242 4242 4242 4242  → Succès
+  4000 0000 0000 0002  → Carte refusée
+  4000 0000 0000 9995  → Fonds insuffisants
+
+=================================================================
+WEBHOOK STRIPE À CONFIGURER
+=================================================================
+
+URL: https://votredomaine.com/api/stripe/webhook
+
+Événements à écouter:
+  - checkout.session.completed
+  - payment_intent.succeeded
+  - payment_intent.payment_failed
+  - charge.refunded
+  - account.updated
+
+=================================================================
+LIMITATIONS ACTUELLES
+=================================================================
+
+- Transferts Stripe Connect non automatiques
+- Pas de paiements fractionnés
+- Pas de gestion des litiges
+- Pas de notifications email
+- Pas de facturation automatique
+
+=================================================================
+AMÉLIORATIONS FUTURES
+=================================================================
+
+- Transferts automatiques vers Stripe Connect
+- Système de paiements fractionnés (acompte + solde)
+- Gestion des litiges (disputes/chargebacks)
+- Tableau de bord de paiements
+- Notifications email
+- Paiements récurrents pour missions hebdomadaires
+- Facturation automatique
+- Export comptable
+
+=================================================================
+DOCUMENTATION COMPLÈTE
+=================================================================
+
+Voir les fichiers suivants pour plus de détails:
+
+1. STRIPE_INTEGRATION.md        → Guide complet d'intégration
+2. PHASE_API_JOBS_STRIPE.md     → Résumé de la phase
+3. STRIPE_FRONTEND_EXAMPLES.md  → Exemples frontend
+4. API_ROUTES_SUMMARY.md        → Résumé des routes API
+
+=================================================================
+SUPPORT
+=================================================================
+
+Stripe Docs:     https://stripe.com/docs
+Stripe Dashboard: https://dashboard.stripe.com
+Stripe Support:   https://support.stripe.com
+
+=================================================================
+FIN DU RAPPORT
+=================================================================

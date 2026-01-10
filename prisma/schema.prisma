@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ AUTH (NextAuth) ============
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(COMPANY)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  company       Company?
+  driverProfile DriverProfile?
+  reviews       Review[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============ BUSINESS MODELS ============
+
+enum Role {
+  COMPANY   // Donneur d'ordre (entreprise de transport/logistique)
+  DRIVER    // Chauffeur/livreur indépendant
+  ADMIN
+}
+
+enum JobStatus {
+  DRAFT           // Brouillon, pas encore publié
+  OPEN            // Mission ouverte aux candidatures
+  PENDING         // Candidature en attente de validation
+  ASSIGNED        // Chauffeur assigné
+  IN_PROGRESS     // Livraison en cours
+  DELIVERED       // Livré
+  COMPLETED       // Terminé et validé
+  CANCELLED       // Annulé
+}
+
+enum VehicleType {
+  BIKE            // Vélo / vélo cargo
+  SCOOTER         // Scooter / moto
+  CAR             // Voiture
+  VAN             // Utilitaire léger
+  TRUCK           // Camion
+}
+
+enum PackageSize {
+  SMALL           // Petits colis
+  MEDIUM          // Colis moyens
+  LARGE           // Gros colis
+  MIXED           // Mix de tailles
+}
+
+enum VehicleVolume {
+  CUBE_6M         // 6m³
+  CUBE_9M         // 9m³
+  CUBE_12M        // 12m³
+  CUBE_15M        // 15m³
+  CUBE_20M        // 20m³
+}
+
+enum MissionType {
+  DAY             // Journée complète
+  HALF_DAY        // Demi-journée
+  WEEK            // Mission semaine
+}
+
+enum MissionZoneType {
+  URBAN           // Tournées dans la même ville / agglomération
+  CITY_TO_CITY    // Missions ville à ville / inter-urbain
+}
+
+// ============ FEEDBACK & BADGES SYSTEM ============
+
+// Types de bulles de commentaires prédéfinis
+enum FeedbackTag {
+  PUNCTUAL        // Ponctuel
+  CAREFUL         // Soigneux
+  COMMUNICATIVE   // Communicatif
+  FAST            // Rapide
+  PRECISE         // Précis
+  FRIENDLY        // Souriant/Aimable
+  RESOURCEFUL     // Débrouillard
+  RESPONSIVE      // Réactif
+  PROFESSIONAL    // Professionnel
+  RELIABLE        // Fiable
+}
+
+// Badges/récompenses débloqués
+enum BadgeType {
+  PUNCTUALITY_CHAMPION   // 50+ votes Ponctuel
+  CAREFUL_EXPERT         // 50+ votes Soigneux
+  SPEED_DEMON            // 50+ votes Rapide
+  COMMUNICATION_STAR     // 50+ votes Communicatif
+  TOP_10_REGION          // Top 10 de sa région
+  TOP_3_REGION           // Top 3 de sa région
+  FIRST_100_DELIVERIES   // 100 livraisons
+  FIRST_500_DELIVERIES   // 500 livraisons
+  PERFECT_RATING         // Note moyenne 5.0
+  RISING_STAR            // Nouveau chauffeur prometteur
+}
+
+// ============ COMPANY (Donneur d'ordre) ============
+
+model Company {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  companyName   String
+  siret         String?
+  phone         String?
+  address       String?
+  city          String?
+  description   String?  @db.Text
+  logo          String?
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs             Job[]
+  driverFeedbacks  DriverFeedback[]
+
+  @@map("companies")
+}
+
+// ============ DRIVER (Livreur indépendant) ============
+
+model DriverProfile {
+  id              String      @id @default(cuid())
+  userId          String      @unique
+  phone           String?
+  bio             String?     @db.Text
+  city            String?
+  region          String?     // Région pour classement régional
+  vehicleTypes    VehicleType[]  // Types de véhicules disponibles
+  licenseNumber   String?
+  insuranceNumber String?
+  stripeAccountId String?
+  isVerified      Boolean     @default(false)
+  isAvailable     Boolean     @default(true)
+  rating          Float       @default(0)
+  totalDeliveries Int         @default(0)
+  totalReviews    Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings        Booking[]         @relation("DriverBookings")
+  feedbacks       DriverFeedback[]
+  badges          DriverBadge[]
+  tagStats        DriverTagStats[]
+
+  @@map("driver_profiles")
+}
+
+// ============ JOB (Mission de livraison urbaine) ============
+
+model Job {
+  id                String        @id @default(cuid())
+  companyId         String
+  title             String
+  description       String?       @db.Text
+
+  // Type et secteur de mission
+  typeMission       MissionType     @default(DAY)
+  missionZoneType   MissionZoneType @default(URBAN)
+  secteurLivraison  String          // Ex: "Paris 11e, 12e, 20e"
+
+  // Détails colis
+  packageSize       PackageSize   @default(MIXED)
+  nombreColis       Int           // Nombre de colis à livrer
+
+  // Timing
+  startTime         DateTime      // Heure de début de mission
+  estimatedEndTime  DateTime      // Heure de fin estimée
+
+  // Véhicule requis
+  vehicleVolume     VehicleVolume
+  needsTailLift     Boolean       @default(false)  // Hayon élévateur requis
+
+  // Rémunération
+  dayRate           Int           // Tarif journée en centimes
+
+  // Statut
+  status            JobStatus     @default(DRAFT)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([secteurLivraison])
+  @@index([typeMission])
+  @@map("jobs")
+}
+
+// ============ BOOKING (Candidature/Attribution) ============
+
+model Booking {
+  id                  String    @id @default(cuid())
+  jobId               String
+  driverId            String
+  status              JobStatus @default(ASSIGNED)
+
+  // Suivi
+  pickedUpAt          DateTime?
+  deliveredAt         DateTime?
+  proofOfDelivery     String?   // URL photo/signature
+
+  // Notes
+  driverNotes         String?   @db.Text
+  companyNotes        String?   @db.Text
+
+  // Paiement
+  agreedPrice         Int       // Prix convenu en centimes
+  stripePaymentId     String?
+  stripePaymentStatus String?
+  paidAt              DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  job            Job             @relation(fields: [jobId], references: [id])
+  driver         DriverProfile   @relation("DriverBookings", fields: [driverId], references: [id])
+  review         Review?
+  driverFeedback DriverFeedback?
+
+  @@unique([jobId, driverId])
+  @@index([driverId])
+  @@index([status])
+  @@map("bookings")
+}
+
+// ============ REVIEW ============
+
+model Review {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  userId    String   // Qui a laissé l'avis (company ou driver)
+  rating    Int      // 1-5
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+// ============ DRIVER FEEDBACK & BADGES ============
+
+// Votes/feedbacks donnés par les entreprises après une mission
+model DriverFeedback {
+  id        String        @id @default(cuid())
+
+  // Qui vote
+  bookingId String        @unique  // Lié à une réservation terminée
+  booking   Booking       @relation(fields: [bookingId], references: [id])
+  companyId String
+  company   Company       @relation(fields: [companyId], references: [id])
+
+  // Pour qui
+  driverId  String
+  driver    DriverProfile @relation(fields: [driverId], references: [id])
+
+  // Le vote
+  rating    Int           // Note globale 1-5
+  tags      FeedbackTag[] // Bulles sélectionnées
+  comment   String?       // Commentaire optionnel
+
+  createdAt DateTime      @default(now())
+
+  @@index([driverId])
+  @@index([companyId])
+  @@map("driver_feedbacks")
+}
+
+// Badges/récompenses débloqués
+model DriverBadge {
+  id       String    @id @default(cuid())
+  driverId String
+  driver   DriverProfile @relation(fields: [driverId], references: [id])
+  badge    BadgeType
+  earnedAt DateTime  @default(now())
+
+  @@unique([driverId, badge])
+  @@index([driverId])
+  @@map("driver_badges")
+}
+
+// Stats agrégées par tag (pour performance)
+model DriverTagStats {
+  id         String        @id @default(cuid())
+  driverId   String
+  driver     DriverProfile @relation(fields: [driverId], references: [id])
+  tag        FeedbackTag
+  count      Int           @default(0)
+  percentage Float         @default(0)  // % des missions avec ce tag
+
+  @@unique([driverId, tag])
+  @@index([driverId])
+  @@map("driver_tag_stats")
+}

@@ -1,0 +1,456 @@
+{
+  "description": "Exemples de payloads pour tester les endpoints no-show",
+  "baseUrl": "http://localhost:3000",
+
+  "endpoints": {
+    "1_report_no_show": {
+      "method": "POST",
+      "url": "/api/bookings/{bookingId}/report-no-show",
+      "auth": "Bearer {companyToken}",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "examples": {
+        "valid_with_evidence": {
+          "comment": "Le chauffeur ne s'est pas présenté au point de rendez-vous à 8h30. J'ai tenté de l'appeler 3 fois (8h35, 8h45, 9h00) sans aucune réponse. Aucune notification ou message de sa part.",
+          "evidence": "https://storage.example.com/no-show-proof-20260110.jpg"
+        },
+        "valid_without_evidence": {
+          "comment": "Chauffeur absent au rendez-vous. Pas de réponse aux appels téléphoniques et emails."
+        },
+        "invalid_comment_too_short": {
+          "comment": "Absent",
+          "expected_error": "Le commentaire doit contenir au moins 10 caractères"
+        },
+        "invalid_evidence_not_url": {
+          "comment": "Le chauffeur ne s'est pas présenté au rendez-vous comme convenu.",
+          "evidence": "not-a-valid-url",
+          "expected_error": "Invalid url"
+        }
+      }
+    },
+
+    "2_confirm_no_show": {
+      "method": "PATCH",
+      "url": "/api/bookings/{bookingId}/confirm-no-show",
+      "auth": "Bearer {adminToken} or {driverToken}",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "examples": {
+        "confirm_with_comment": {
+          "confirmed": true,
+          "adminComment": "Après investigation complète, le no-show est confirmé. Le chauffeur n'a fourni aucune justification valable malgré plusieurs relances."
+        },
+        "confirm_without_comment": {
+          "confirmed": true
+        },
+        "contest_with_reason": {
+          "confirmed": false,
+          "adminComment": "Le chauffeur a fourni des preuves d'un accident de la route qui l'a empêché de se présenter. Il a également tenté de prévenir l'entreprise mais n'a pas réussi à les joindre. Contestation acceptée."
+        },
+        "contest_driver_self_defense": {
+          "confirmed": false,
+          "adminComment": "J'ai eu un grave accident ce matin à 7h45. J'ai essayé d'appeler l'entreprise plusieurs fois mais personne ne répondait. J'ai des photos de l'accident et le constat de police si nécessaire."
+        }
+      },
+      "scenarios": {
+        "first_strike": {
+          "description": "Première infraction, avertissement uniquement",
+          "expected_sanction": {
+            "strikeCount": 1,
+            "message": "AVERTISSEMENT - 1er no-show",
+            "isBanned": false,
+            "suspensionUntil": null,
+            "isAvailable_after": true
+          }
+        },
+        "second_strike": {
+          "description": "Deuxième infraction, suspension 7 jours",
+          "expected_sanction": {
+            "strikeCount": 2,
+            "message": "SUSPENSION 7 JOURS - 2ème no-show",
+            "isBanned": false,
+            "suspensionUntil": "2026-01-17T11:00:00.000Z",
+            "isAvailable_after": false
+          }
+        },
+        "third_strike": {
+          "description": "Troisième infraction ou plus, ban permanent",
+          "expected_sanction": {
+            "strikeCount": 3,
+            "message": "BAN PERMANENT - 3ème no-show ou plus",
+            "isBanned": true,
+            "suspensionUntil": null,
+            "isAvailable_after": false
+          }
+        }
+      }
+    },
+
+    "3_refund": {
+      "method": "PATCH",
+      "url": "/api/bookings/{bookingId}/refund",
+      "auth": "Bearer {companyToken} or {adminToken}",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "examples": {
+        "refund_with_reason": {
+          "reason": "requested_by_customer",
+          "comment": "Remboursement suite au no-show confirmé du chauffeur. Mission annulée."
+        },
+        "refund_minimal": {
+          "reason": "requested_by_customer"
+        },
+        "refund_no_body": {
+          "description": "Body optionnel, valeurs par défaut utilisées"
+        },
+        "refund_fraudulent": {
+          "reason": "fraudulent",
+          "comment": "Le chauffeur a été signalé pour fraude, remboursement complet demandé."
+        }
+      },
+      "stripe_reasons": {
+        "duplicate": "Transaction en double",
+        "fraudulent": "Transaction frauduleuse",
+        "requested_by_customer": "Demandé par le client (défaut)"
+      }
+    }
+  },
+
+  "test_scenarios": {
+    "scenario_1_happy_path": {
+      "description": "Workflow complet : Report → Confirm → Refund → Webhook",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Company signale le no-show",
+          "endpoint": "POST /api/bookings/booking123/report-no-show",
+          "payload": {
+            "comment": "Le chauffeur ne s'est pas présenté au point de rendez-vous à 8h30. Aucune réponse aux appels.",
+            "evidence": "https://storage.example.com/proof.jpg"
+          },
+          "expected_status": 200,
+          "expected_changes": {
+            "booking.companyNotes": "Contains 'NO_SHOW_REPORTED:'",
+            "booking.status": "ASSIGNED (unchanged)"
+          }
+        },
+        {
+          "step": 2,
+          "action": "Admin confirme le no-show (1er strike)",
+          "endpoint": "PATCH /api/bookings/booking123/confirm-no-show",
+          "payload": {
+            "confirmed": true,
+            "adminComment": "No-show confirmé après investigation."
+          },
+          "expected_status": 200,
+          "expected_changes": {
+            "booking.status": "CANCELLED",
+            "booking.companyNotes": "Contains 'NO_SHOW_CONFIRMED:'",
+            "driver.bio": "Contains 'STRIKE_COUNT:1'",
+            "driver.isAvailable": "true (still available)"
+          }
+        },
+        {
+          "step": 3,
+          "action": "Company demande le remboursement",
+          "endpoint": "PATCH /api/bookings/booking123/refund",
+          "payload": {
+            "reason": "requested_by_customer"
+          },
+          "expected_status": 200,
+          "expected_changes": {
+            "booking.companyNotes": "Contains 'REFUND_INITIATED:'",
+            "response.refund.id": "Starts with 're_'",
+            "response.refund.status": "pending"
+          }
+        },
+        {
+          "step": 4,
+          "action": "Webhook Stripe confirme le remboursement",
+          "endpoint": "POST /api/stripe/webhook (automatic)",
+          "webhook_event": {
+            "type": "refund.updated",
+            "data": {
+              "object": {
+                "id": "re_1ABC123",
+                "payment_intent": "pi_1XYZ789",
+                "status": "succeeded",
+                "amount": 15000
+              }
+            }
+          },
+          "expected_status": 200,
+          "expected_changes": {
+            "booking.stripePaymentStatus": "refunded",
+            "booking.companyNotes": "Contains 'Stripe webhook: Refund mis à jour'"
+          }
+        }
+      ]
+    },
+
+    "scenario_2_contested": {
+      "description": "Workflow contestation : Report → Contest → Investigation manuelle",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Company signale le no-show",
+          "endpoint": "POST /api/bookings/booking456/report-no-show",
+          "payload": {
+            "comment": "Chauffeur absent au rendez-vous de 9h. Aucune explication fournie."
+          },
+          "expected_status": 200
+        },
+        {
+          "step": 2,
+          "action": "Driver conteste le no-show",
+          "endpoint": "PATCH /api/bookings/booking456/confirm-no-show",
+          "payload": {
+            "confirmed": false,
+            "adminComment": "J'ai eu un accident grave ce matin. J'ai des preuves (constat police, photos). J'ai tenté d'appeler l'entreprise plusieurs fois."
+          },
+          "expected_status": 200,
+          "expected_changes": {
+            "booking.driverNotes": "Contains 'NO_SHOW_CONTESTED:'",
+            "booking.status": "ASSIGNED (unchanged)",
+            "driver.strikeCount": "0 (unchanged)"
+          }
+        },
+        {
+          "step": 3,
+          "action": "Investigation manuelle par Admin",
+          "description": "Admin vérifie les preuves et décide manuellement",
+          "possible_outcomes": [
+            "Admin confirme finalement → PATCH confirm-no-show avec confirmed:true",
+            "Admin annule le signalement → Modification manuelle en DB"
+          ]
+        }
+      ]
+    },
+
+    "scenario_3_three_strikes": {
+      "description": "Chauffeur accumule 3 strikes → Ban permanent",
+      "steps": [
+        {
+          "step": "1a",
+          "action": "Premier no-show confirmé",
+          "endpoint": "PATCH /api/bookings/booking1/confirm-no-show",
+          "payload": {"confirmed": true},
+          "expected_sanction": {
+            "strikeCount": 1,
+            "message": "AVERTISSEMENT - 1er no-show",
+            "isBanned": false,
+            "isAvailable": true
+          }
+        },
+        {
+          "step": "1b",
+          "action": "Refund pour booking1",
+          "endpoint": "PATCH /api/bookings/booking1/refund",
+          "expected_status": 200
+        },
+        {
+          "step": "2a",
+          "action": "Deuxième no-show confirmé",
+          "endpoint": "PATCH /api/bookings/booking2/confirm-no-show",
+          "payload": {"confirmed": true},
+          "expected_sanction": {
+            "strikeCount": 2,
+            "message": "SUSPENSION 7 JOURS - 2ème no-show",
+            "isBanned": false,
+            "suspensionUntil": "2026-01-17T...",
+            "isAvailable": false
+          }
+        },
+        {
+          "step": "2b",
+          "action": "Refund pour booking2",
+          "endpoint": "PATCH /api/bookings/booking2/refund",
+          "expected_status": 200
+        },
+        {
+          "step": "3a",
+          "action": "Troisième no-show confirmé",
+          "endpoint": "PATCH /api/bookings/booking3/confirm-no-show",
+          "payload": {"confirmed": true},
+          "expected_sanction": {
+            "strikeCount": 3,
+            "message": "BAN PERMANENT - 3ème no-show ou plus",
+            "isBanned": true,
+            "suspensionUntil": null,
+            "isAvailable": false
+          }
+        },
+        {
+          "step": "3b",
+          "action": "Driver ne peut plus accepter de missions",
+          "description": "Le compte chauffeur est désactivé de manière permanente",
+          "expected_behavior": "GET /api/jobs retourne 0 missions, isAvailable=false empêche les candidatures"
+        }
+      ]
+    }
+  },
+
+  "error_cases": {
+    "report_no_show_errors": {
+      "no_auth": {
+        "status": 401,
+        "error": "Non authentifié. Veuillez vous connecter."
+      },
+      "wrong_role": {
+        "status": 403,
+        "error": "Accès réservé aux entreprises (Role.COMPANY)."
+      },
+      "not_owner": {
+        "status": 403,
+        "error": "Vous n'êtes pas autorisé à signaler un no-show pour cette mission"
+      },
+      "booking_not_found": {
+        "status": 404,
+        "error": "Réservation non trouvée"
+      },
+      "invalid_status": {
+        "status": 400,
+        "error": "Le no-show ne peut être signalé que pour une mission assignée ou en cours",
+        "currentStatus": "COMPLETED"
+      },
+      "already_reported": {
+        "status": 400,
+        "error": "Le no-show a déjà été signalé pour cette mission"
+      },
+      "comment_too_short": {
+        "status": 400,
+        "error": "Données invalides",
+        "details": [
+          {
+            "code": "too_small",
+            "minimum": 10,
+            "path": ["comment"]
+          }
+        ]
+      }
+    },
+
+    "confirm_no_show_errors": {
+      "no_auth": {
+        "status": 401,
+        "error": "Non authentifié. Veuillez vous connecter."
+      },
+      "wrong_role": {
+        "status": 403,
+        "error": "Accès refusé. Vous n'avez pas les autorisations nécessaires."
+      },
+      "driver_wrong_booking": {
+        "status": 403,
+        "error": "Vous n'êtes pas autorisé à traiter ce no-show"
+      },
+      "no_report": {
+        "status": 400,
+        "error": "Aucun no-show n'a été signalé pour cette mission"
+      },
+      "already_processed": {
+        "status": 400,
+        "error": "Ce no-show a déjà été traité"
+      }
+    },
+
+    "refund_errors": {
+      "no_auth": {
+        "status": 401,
+        "error": "Non authentifié. Veuillez vous connecter."
+      },
+      "wrong_role": {
+        "status": 403,
+        "error": "Accès refusé. Vous n'avez pas les autorisations nécessaires."
+      },
+      "company_not_owner": {
+        "status": 403,
+        "error": "Vous n'êtes pas autorisé à demander un remboursement pour cette mission"
+      },
+      "no_confirmation": {
+        "status": 400,
+        "error": "Le remboursement n'est possible que si le no-show a été confirmé"
+      },
+      "no_payment": {
+        "status": 400,
+        "error": "Aucun paiement n'a été effectué pour cette mission"
+      },
+      "payment_not_succeeded": {
+        "status": 400,
+        "error": "Le paiement n'a pas été effectué avec succès",
+        "currentStatus": "payment_pending"
+      },
+      "already_refunded": {
+        "status": 400,
+        "error": "Le remboursement a déjà été initié pour cette mission"
+      },
+      "stripe_error": {
+        "status": 400,
+        "error": "Erreur Stripe",
+        "details": "Charge already refunded.",
+        "type": "StripeInvalidRequestError"
+      }
+    }
+  },
+
+  "curl_examples": {
+    "report_no_show": "curl -X POST http://localhost:3000/api/bookings/booking123/report-no-show \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer COMPANY_TOKEN' \\\n  -d '{\"comment\": \"Le chauffeur ne s est pas présente au rendez-vous. Aucune réponse aux appels.\", \"evidence\": \"https://example.com/proof.jpg\"}'",
+
+    "confirm_no_show": "curl -X PATCH http://localhost:3000/api/bookings/booking123/confirm-no-show \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer ADMIN_TOKEN' \\\n  -d '{\"confirmed\": true, \"adminComment\": \"No-show confirmé après investigation.\"}'",
+
+    "refund": "curl -X PATCH http://localhost:3000/api/bookings/booking123/refund \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer COMPANY_TOKEN' \\\n  -d '{\"reason\": \"requested_by_customer\", \"comment\": \"Remboursement suite no-show.\"}'",
+
+    "webhook_test": "# Installer Stripe CLI\nbrew install stripe/stripe-cli/stripe\n\n# Login\nstripe login\n\n# Forward events vers localhost\nstripe listen --forward-to http://localhost:3000/api/stripe/webhook\n\n# Trigger refund event (dans un autre terminal)\nstripe trigger refund.succeeded"
+  },
+
+  "postman_environment": {
+    "name": "Prestapop - No-Show Testing",
+    "values": [
+      {
+        "key": "baseUrl",
+        "value": "http://localhost:3000",
+        "enabled": true
+      },
+      {
+        "key": "companyToken",
+        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "enabled": true
+      },
+      {
+        "key": "driverToken",
+        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "enabled": true
+      },
+      {
+        "key": "adminToken",
+        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "enabled": true
+      },
+      {
+        "key": "bookingId",
+        "value": "clxxxxx",
+        "enabled": true
+      },
+      {
+        "key": "refundId",
+        "value": "",
+        "enabled": true,
+        "description": "Set automatically after refund request"
+      }
+    ]
+  },
+
+  "notes": {
+    "authentication": "Tous les endpoints nécessitent un token JWT valide dans le header Authorization: Bearer {token}",
+    "roles": {
+      "COMPANY": "Entreprise (donneur d'ordre)",
+      "DRIVER": "Chauffeur indépendant",
+      "ADMIN": "Administrateur de la plateforme"
+    },
+    "stripe_test_mode": "Utiliser les clés API Stripe en mode test. Les webhooks peuvent être testés avec Stripe CLI.",
+    "data_persistence": "Les sanctions (strikes) sont temporairement stockées dans DriverProfile.bio. Migration recommandée vers des champs dédiés.",
+    "notifications": "Les TODOs pour envoyer des emails sont présents mais non implémentés. À configurer avec SendGrid/Resend."
+  }
+}
