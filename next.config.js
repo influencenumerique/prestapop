@@ -4,7 +4,7 @@ const nextConfig = {
     serverActions: true,
   },
   eslint: {
-    // Ne bloque pas le build à cause des erreurs ESLint
+    // Désactive complètement les vérifications ESLint pendant le build
     ignoreDuringBuilds: true,
   },
 };
