@@ -32,7 +32,7 @@ export async function GET(
       return authResult.error
     }
 
-    const { user } = authResult
+    const { user: _user } = authResult
     const { id } = await params
 
     const job = await db.job.findUnique({

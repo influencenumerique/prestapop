@@ -25,14 +25,6 @@ const vehicleTypes = [
   { name: "Camion", slug: "TRUCK", icon: "🚚", description: "Gros volumes" },
 ]
 
-// Fonction pour formater le nom (prénom + initiale du nom)
-function formatDriverName(fullName: string): string {
-  const parts = fullName.trim().split(" ")
-  if (parts.length === 1) return parts[0]
-  const firstName = parts[0]
-  const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase()
-  return `${firstName} ${lastInitial}.`
-}
 
 // Missions fictives pour affichage
 const featuredJobs = [
@@ -172,14 +164,19 @@ export default async function HomePage() {
   let userRole: "company" | "driver" | "guest" = "guest"
 
   if (session?.user) {
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      include: { company: true, driverProfile: true },
-    })
-    if (user?.company) {
-      userRole = "company"
-    } else if (user?.driverProfile) {
-      userRole = "driver"
+    try {
+      const user = await db.user.findUnique({
+        where: { id: session.user.id },
+        include: { company: true, driverProfile: true },
+      })
+      if (user?.company) {
+        userRole = "company"
+      } else if (user?.driverProfile) {
+        userRole = "driver"
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error)
+      // Continue with guest role if DB query fails
     }
   }
 
@@ -592,7 +589,7 @@ export default async function HomePage() {
               <Package className="h-7 w-7 text-green-200" />
               <div className="hidden md:block h-[2px] w-16 bg-gradient-to-l from-transparent to-green-300"></div>
             </div>
-            <p className="text-center text-green-100 text-sm mt-2">Trouvez des missions et gagnez de l'argent</p>
+            <p className="text-center text-green-100 text-sm mt-2">Trouvez des missions et gagnez de l&apos;argent</p>
           </div>
         </section>
       )}
@@ -607,7 +604,7 @@ export default async function HomePage() {
                 Pour les chauffeurs
               </Badge>
               <h2 className="text-3xl font-bold">Missions disponibles</h2>
-              <p className="text-muted-foreground">Postulez et gagnez de l'argent</p>
+              <p className="text-muted-foreground">Postulez et gagnez de l&apos;argent</p>
             </div>
             <Link href="/jobs">
               <Button variant="default" className="gap-2 bg-green-600 hover:bg-green-700">

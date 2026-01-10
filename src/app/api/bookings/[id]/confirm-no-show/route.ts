@@ -109,7 +109,7 @@ export async function PATCH(
     const data = confirmNoShowSchema.parse(body)
 
     const timestamp = new Date().toISOString()
-    const isAdmin = hasRole(user, "ADMIN")
+    const _isAdmin = hasRole(user, "ADMIN")
 
     if (data.confirmed) {
       // NO-SHOW CONFIRMÉ → Sanctions + Annulation
@@ -178,7 +178,7 @@ export async function PATCH(
       const existingBio = booking.driver.bio || ""
 
       // Remove old STRIKE_COUNT record if exists
-      const cleanedBio = existingBio.replace(/\[SANCTION\] STRIKE_COUNT:\d+.*?(?=\n\n|\n\[|$)/s, "").trim()
+      const cleanedBio = existingBio.replace(/\[SANCTION\] STRIKE_COUNT:\d+[\s\S]*?(?=\n\n|\n\[|$)/, "").trim()
 
       await db.driverProfile.update({
         where: { id: booking.driverId },

@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       return authResult.error
     }
 
-    const { user } = authResult
+    const { user: _user } = authResult
 
     const { searchParams } = new URL(req.url)
     const secteur = searchParams.get("secteur")

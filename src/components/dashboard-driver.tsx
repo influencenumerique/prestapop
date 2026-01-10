@@ -1,8 +1,6 @@
 "use client"
 
-import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatPrice } from "@/lib/utils"
 import { Truck, Clock, CheckCircle, MapPin } from "lucide-react"
@@ -101,7 +99,7 @@ export function DriverDashboard({ profile, bookings, hasKbis, kbisVerified }: Dr
                   Document requis pour postuler
                 </h3>
                 <p className="text-sm text-yellow-800 mb-4">
-                  Pour commencer à postuler aux missions, vous devez d'abord télécharger votre KBIS d'auto-entrepreneur (moins de 3 mois).
+                  Pour commencer à postuler aux missions, vous devez d&apos;abord télécharger votre KBIS d&apos;auto-entrepreneur (moins de 3 mois).
                 </p>
                 <ProtectedActionButton
                   userType="driver"

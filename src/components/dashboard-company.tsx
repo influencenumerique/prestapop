@@ -2,10 +2,9 @@
 
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatPrice } from "@/lib/utils"
-import { Truck, Clock, CheckCircle, MapPin, Plus } from "lucide-react"
+import { Clock, CheckCircle, MapPin, Plus } from "lucide-react"
 import { ProtectedActionButton } from "./protected-action-button"
 import { LaunchMissionButton } from "./launch-mission-button"
 
@@ -140,7 +139,7 @@ export function CompanyDashboard({ jobs, hasKbis, kbisVerified }: CompanyDashboa
                   Document requis pour publier
                 </h3>
                 <p className="text-sm text-yellow-800 mb-4">
-                  Pour publier votre première mission, vous devez d'abord télécharger le KBIS de votre entreprise (moins de 3 mois).
+                  Pour publier votre première mission, vous devez d&apos;abord télécharger le KBIS de votre entreprise (moins de 3 mois).
                 </p>
                 <ProtectedActionButton
                   userType="company"

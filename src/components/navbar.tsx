@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Search, User, LogOut, PlusCircle, Users } from "lucide-react"
+import { Search, User, LogOut, PlusCircle } from "lucide-react"
 
 export function Navbar() {
   const { data: session, status } = useSession()

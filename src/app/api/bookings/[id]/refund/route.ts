@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { z } from "zod"
-import { requireAnyRole, isCompanyOwner, hasRole } from "@/lib/api-auth"
+import { requireAnyRole, isCompanyOwner } from "@/lib/api-auth"
 import { createRefund } from "@/lib/stripe"
 
 const refundSchema = z.object({
@@ -110,7 +110,7 @@ export async function PATCH(
 
     // Check if already refunded
     if (booking.companyNotes?.includes("REFUND_INITIATED:") ||
-        booking.stripePaymentStatus === "refunded") {
+        (booking.stripePaymentStatus as string) === "refunded") {
       return NextResponse.json(
         { error: "Le remboursement a déjà été initié pour cette mission" },
         { status: 400 }

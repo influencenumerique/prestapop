@@ -45,8 +45,8 @@ interface DriverFeedbackTagsProps {
 }
 
 export function DriverFeedbackTags({
-  jobId,
-  driverId,
+  jobId: _jobId,
+  driverId: _driverId,
   onSubmit,
   readonly = false,
   selectedTags: initialSelectedTags = [],

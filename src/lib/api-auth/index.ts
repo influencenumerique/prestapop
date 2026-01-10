@@ -147,7 +147,7 @@ export async function requireAuth(): Promise<
   try {
     const user = await getAuthenticatedUser(session)
     return { user }
-  } catch (error) {
+  } catch (_error) {
     return { error: AuthErrors.USER_NOT_FOUND }
   }
 }

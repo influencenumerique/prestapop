@@ -11,7 +11,7 @@ import { requireRole } from "@/lib/api-auth"
  *
  * Accessible uniquement par les ADMIN
  */
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     // Verify authentication - ADMIN only
     const authResult = await requireRole("ADMIN")
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     }
 
     const AUTO_VALIDATE_THRESHOLD_HOURS = 48
-    const thresholdDate = new Date(Date.now() - AUTO_VALIDATE_THRESHOLD_HOURS * 60 * 60 * 1000)
+    const _thresholdDate = new Date(Date.now() - AUTO_VALIDATE_THRESHOLD_HOURS * 60 * 60 * 1000)
 
     // Find all bookings that are DELIVERED for more than 48h
     const eligibleBookings = await db.booking.findMany({
