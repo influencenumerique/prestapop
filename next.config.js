@@ -4,6 +4,7 @@ const nextConfig = {
     serverActions: true,
   },
   eslint: {
+    // Désactive complètement ESLint pendant les builds
     ignoreDuringBuilds: true,
   },
 };
