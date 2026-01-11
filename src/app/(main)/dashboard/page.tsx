@@ -50,6 +50,11 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
+  // Redirect ADMIN users to admin dashboard
+  if (user.role === "ADMIN") {
+    redirect("/admin/dashboard")
+  }
+
   const isDriver = !!user.driverProfile
   const isCompany = !!user.company
 
@@ -105,6 +110,8 @@ export default async function DashboardPage() {
           bookings={driverBookings}
           hasKbis={hasKbis}
           kbisVerified={kbisVerified}
+          userStatus={user.status}
+          isVerified={user.driverProfile!.isVerified}
         />
       )}
 

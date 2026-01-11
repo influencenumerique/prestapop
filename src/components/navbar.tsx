@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Search, User, LogOut, PlusCircle } from "lucide-react"
 
 export function Navbar() {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
   const isCompany = session?.user?.role === "COMPANY"
 
   return (
@@ -64,9 +64,7 @@ export function Navbar() {
             />
           </div>
 
-          {status === "loading" ? (
-            <div className="h-9 w-24 animate-pulse bg-muted rounded-md" />
-          ) : session?.user ? (
+          {session?.user ? (
             <>
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm" className="gap-2 text-sm lg:text-base">

@@ -169,13 +169,22 @@ export function FeaturedDriversSection({ drivers }: FeaturedDriversSectionProps)
         {/* CTA */}
         <div className="mt-10 text-center">
           <p className="text-slate-400 mb-4">Inscrivez-vous pour voir tous les profils et contacter les chauffeurs</p>
-          <Link href="/register?type=company">
-            <Button size="lg" className="gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold px-8">
-              <Zap className="h-5 w-5" />
-              Creer mon compte entreprise gratuit
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link href="/register?type=company">
+              <Button size="lg" className="gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold px-8">
+                <Zap className="h-5 w-5" />
+                Creer mon compte entreprise gratuit
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/register?type=driver">
+              <Button size="lg" variant="outline" className="gap-2 border-blue-500 text-blue-400 hover:bg-blue-500/10 font-bold px-8">
+                <Truck className="h-5 w-5" />
+                Devenir chauffeur
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

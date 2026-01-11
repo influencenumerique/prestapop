@@ -3,6 +3,20 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
+  // Create admin user
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@prestapop.com' },
+    update: { password: 'test123', role: 'ADMIN' },
+    create: {
+      email: 'admin@prestapop.com',
+      name: 'Super Admin',
+      role: 'ADMIN',
+      password: 'test123',
+    },
+  })
+
+  console.log('Created admin:', adminUser.email)
+
   // Create demo company user
   const companyUser = await prisma.user.upsert({
     where: { email: 'entreprise@prestapop.com' },
@@ -63,6 +77,159 @@ async function main() {
   })
 
   console.log('Created driver:', driverUser.name)
+
+  // ============ USERS PENDING_VERIF (inscriptions manuelles incomplètes) ============
+
+  // Entreprise en attente de vérification (documents incomplets)
+  const pendingCompanyUser = await prisma.user.upsert({
+    where: { email: 'entreprise.pending@prestapop.com' },
+    update: { status: 'PENDING_VERIF' },
+    create: {
+      email: 'entreprise.pending@prestapop.com',
+      name: 'TransExpress SARL',
+      role: 'COMPANY',
+      status: 'PENDING_VERIF',
+      password: 'test123',
+      verificationDocs: {
+        siretUrl: 'https://storage.prestapop.com/docs/transexpress-siret.pdf',
+        permisUrl: null,
+        assuranceUrl: null,
+      },
+    },
+  })
+
+  await prisma.company.upsert({
+    where: { userId: pendingCompanyUser.id },
+    update: {},
+    create: {
+      userId: pendingCompanyUser.id,
+      companyName: 'TransExpress SARL',
+      siret: '98765432109876',
+      phone: '0156789012',
+      city: 'Lyon',
+      isVerified: false,
+    },
+  })
+
+  // Documents de l'entreprise en attente
+  await prisma.document.upsert({
+    where: { userId_type: { userId: pendingCompanyUser.id, type: 'KBIS' } },
+    update: {},
+    create: {
+      userId: pendingCompanyUser.id,
+      type: 'KBIS',
+      url: 'https://storage.prestapop.com/docs/transexpress-kbis.pdf',
+      status: 'OK',
+    },
+  })
+
+  await prisma.document.upsert({
+    where: { userId_type: { userId: pendingCompanyUser.id, type: 'VEHICLE_INSURANCE' } },
+    update: {},
+    create: {
+      userId: pendingCompanyUser.id,
+      type: 'VEHICLE_INSURANCE',
+      url: '',
+      status: 'MISSING',
+    },
+  })
+
+  // VerificationDoc pour Company - 1 document manquant (PENDING)
+  await prisma.verificationDoc.upsert({
+    where: { userId_documentType: { userId: pendingCompanyUser.id, documentType: 'KBIS_3MONTHS' } },
+    update: {},
+    create: {
+      userId: pendingCompanyUser.id,
+      documentType: 'KBIS_3MONTHS',
+      cloudinaryUrl: 'https://res.cloudinary.com/prestapop/docs/transexpress-kbis.pdf',
+      status: 'PENDING',
+      adminNotes: null,
+    },
+  })
+
+  console.log('Created pending company:', pendingCompanyUser.email)
+
+  // Chauffeur en attente de vérification (permis illisible)
+  const pendingDriverUser = await prisma.user.upsert({
+    where: { email: 'chauffeur.pending@prestapop.com' },
+    update: { status: 'PENDING_VERIF' },
+    create: {
+      email: 'chauffeur.pending@prestapop.com',
+      name: 'Sophie Martin',
+      role: 'DRIVER',
+      status: 'PENDING_VERIF',
+      password: 'test123',
+      verificationDocs: {
+        siretUrl: null,
+        permisUrl: 'https://storage.prestapop.com/docs/sophie-permis.jpg',
+        assuranceUrl: 'https://storage.prestapop.com/docs/sophie-assurance.pdf',
+      },
+    },
+  })
+
+  await prisma.driverProfile.upsert({
+    where: { userId: pendingDriverUser.id },
+    update: {},
+    create: {
+      userId: pendingDriverUser.id,
+      phone: '0698765432',
+      bio: 'Livreuse indépendante, disponible sur Lyon et environs.',
+      city: 'Lyon',
+      vehicleTypes: ['VAN'],
+      isVerified: false,
+      isAvailable: false,
+    },
+  })
+
+  // Documents du chauffeur en attente
+  await prisma.document.upsert({
+    where: { userId_type: { userId: pendingDriverUser.id, type: 'DRIVER_LICENSE' } },
+    update: {},
+    create: {
+      userId: pendingDriverUser.id,
+      type: 'DRIVER_LICENSE',
+      url: 'https://storage.prestapop.com/docs/sophie-permis.jpg',
+      status: 'ILLEGIBLE',
+    },
+  })
+
+  await prisma.document.upsert({
+    where: { userId_type: { userId: pendingDriverUser.id, type: 'VEHICLE_INSURANCE' } },
+    update: {},
+    create: {
+      userId: pendingDriverUser.id,
+      type: 'VEHICLE_INSURANCE',
+      url: 'https://storage.prestapop.com/docs/sophie-assurance.pdf',
+      status: 'OK',
+    },
+  })
+
+  // VerificationDoc pour Driver - 2 documents
+  await prisma.verificationDoc.upsert({
+    where: { userId_documentType: { userId: pendingDriverUser.id, documentType: 'IDENTITY' } },
+    update: {},
+    create: {
+      userId: pendingDriverUser.id,
+      documentType: 'IDENTITY',
+      cloudinaryUrl: 'https://res.cloudinary.com/prestapop/docs/sophie-identity.jpg',
+      status: 'APPROVED',
+      adminNotes: 'Document vérifié',
+    },
+  })
+
+  await prisma.verificationDoc.upsert({
+    where: { userId_documentType: { userId: pendingDriverUser.id, documentType: 'DRIVER_LICENSE' } },
+    update: {},
+    create: {
+      userId: pendingDriverUser.id,
+      documentType: 'DRIVER_LICENSE',
+      cloudinaryUrl: 'https://res.cloudinary.com/prestapop/docs/sophie-permis.jpg',
+      status: 'REJECTED',
+      adminNotes: 'Photo illisible, merci de renvoyer une photo plus nette',
+    },
+  })
+
+  console.log('Created pending driver:', pendingDriverUser.email)
 
   // Create demo jobs - Missions de transport urbain
   const tomorrow6h = new Date()
@@ -156,6 +323,114 @@ async function main() {
   ])
 
   console.log('Created demo jobs:', jobs.length)
+
+  // ============ MESSAGERIE TEST ============
+
+  // Conversation 1: Admin <-> Chauffeur vérifié
+  const conversation1 = await prisma.conversation.upsert({
+    where: { id: 'conv-admin-driver-1' },
+    update: { lastMessage: new Date() },
+    create: {
+      id: 'conv-admin-driver-1',
+      lastMessage: new Date(),
+    },
+  })
+
+  // Participants conversation 1
+  await prisma.conversationParticipant.upsert({
+    where: { conversationId_userId: { conversationId: conversation1.id, userId: adminUser.id } },
+    update: {},
+    create: {
+      conversationId: conversation1.id,
+      userId: adminUser.id,
+    },
+  })
+
+  await prisma.conversationParticipant.upsert({
+    where: { conversationId_userId: { conversationId: conversation1.id, userId: driverUser.id } },
+    update: {},
+    create: {
+      conversationId: conversation1.id,
+      userId: driverUser.id,
+    },
+  })
+
+  // Messages conversation 1
+  await prisma.message.upsert({
+    where: { id: 'msg-1-1' },
+    update: {},
+    create: {
+      id: 'msg-1-1',
+      conversationId: conversation1.id,
+      senderId: adminUser.id,
+      receiverId: driverUser.id,
+      content: 'Bonjour Marc, bienvenue sur PrestaPop ! Votre compte a été validé.',
+      readAt: new Date(),
+      createdAt: new Date(Date.now() - 86400000), // 1 jour avant
+    },
+  })
+
+  await prisma.message.upsert({
+    where: { id: 'msg-1-2' },
+    update: {},
+    create: {
+      id: 'msg-1-2',
+      conversationId: conversation1.id,
+      senderId: driverUser.id,
+      receiverId: adminUser.id,
+      content: 'Merci beaucoup ! Je suis prêt à commencer les missions.',
+      readAt: new Date(),
+      createdAt: new Date(Date.now() - 82800000), // 23h avant
+    },
+  })
+
+  console.log('Created conversation 1: Admin <-> Driver')
+
+  // Conversation 2: Admin <-> Chauffeur en attente
+  const conversation2 = await prisma.conversation.upsert({
+    where: { id: 'conv-admin-driver-2' },
+    update: { lastMessage: new Date() },
+    create: {
+      id: 'conv-admin-driver-2',
+      lastMessage: new Date(),
+    },
+  })
+
+  // Participants conversation 2
+  await prisma.conversationParticipant.upsert({
+    where: { conversationId_userId: { conversationId: conversation2.id, userId: adminUser.id } },
+    update: {},
+    create: {
+      conversationId: conversation2.id,
+      userId: adminUser.id,
+    },
+  })
+
+  await prisma.conversationParticipant.upsert({
+    where: { conversationId_userId: { conversationId: conversation2.id, userId: pendingDriverUser.id } },
+    update: {},
+    create: {
+      conversationId: conversation2.id,
+      userId: pendingDriverUser.id,
+    },
+  })
+
+  // Messages conversation 2
+  await prisma.message.upsert({
+    where: { id: 'msg-2-1' },
+    update: {},
+    create: {
+      id: 'msg-2-1',
+      conversationId: conversation2.id,
+      senderId: adminUser.id,
+      receiverId: pendingDriverUser.id,
+      content: 'Bonjour Sophie, votre permis de conduire est illisible. Merci de renvoyer une photo plus nette.',
+      readAt: null, // Non lu
+      createdAt: new Date(Date.now() - 3600000), // 1h avant
+    },
+  })
+
+  console.log('Created conversation 2: Admin <-> Pending Driver')
 
   console.log('Seed completed successfully!')
 }

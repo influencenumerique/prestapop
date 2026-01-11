@@ -1,12 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { formatPrice } from "@/lib/utils"
-import { Clock, CheckCircle, MapPin, Plus } from "lucide-react"
+import { Clock, CheckCircle, MapPin, Plus, FileText, AlertTriangle } from "lucide-react"
 import { ProtectedActionButton } from "./protected-action-button"
 import { LaunchMissionButton } from "./launch-mission-button"
+import { DocumentUploadModal } from "./document-upload-modal"
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   OPEN: { label: "Disponible", color: "bg-green-100 text-green-800" },
@@ -41,6 +44,8 @@ interface CompanyDashboardProps {
 }
 
 export function CompanyDashboard({ jobs, hasKbis, kbisVerified }: CompanyDashboardProps) {
+  const [showDocModal, setShowDocModal] = useState(false)
+
   const openJobs = jobs.filter(j => j.status === "OPEN")
   const inProgressJobs = jobs.filter(j => j.status === "IN_PROGRESS")
 
@@ -126,35 +131,49 @@ export function CompanyDashboard({ jobs, hasKbis, kbisVerified }: CompanyDashboa
         </Card>
       </div>
 
-      {/* KBIS Alert */}
+      {/* Documents Alert */}
       {!hasKbis && (
-        <Card className="mb-8 border-yellow-200 bg-yellow-50">
+        <Card className="mb-8 border-orange-200 bg-orange-50">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-yellow-100 rounded-lg shrink-0">
-                <CheckCircle className="h-6 w-6 text-yellow-600" />
+              <div className="p-3 bg-orange-100 rounded-lg shrink-0">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-yellow-900 mb-1">
-                  Document requis pour publier
+                <h3 className="font-semibold text-orange-900 mb-1">
+                  Documents requis pour publier
                 </h3>
-                <p className="text-sm text-yellow-800 mb-4">
-                  Pour publier votre première mission, vous devez d&apos;abord télécharger le KBIS de votre entreprise (moins de 3 mois).
+                <p className="text-sm text-orange-800 mb-2">
+                  Pour publier vos missions, vous devez fournir les documents suivants :
                 </p>
-                <ProtectedActionButton
-                  userType="company"
-                  hasKbis={false}
-                  kbisVerified={false}
-                  variant="default"
+                <ul className="text-sm text-orange-800 mb-4 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    KBIS (moins de 3 mois)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Pièce d&apos;identité du gérant
+                  </li>
+                </ul>
+                <Button
+                  onClick={() => setShowDocModal(true)}
                   size="sm"
                 >
-                  Télécharger mon KBIS
-                </ProtectedActionButton>
+                  Envoyer mes documents
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Document Upload Modal */}
+      <DocumentUploadModal
+        open={showDocModal}
+        onOpenChange={setShowDocModal}
+        role="COMPANY"
+      />
 
       {/* My Jobs */}
       <Card>

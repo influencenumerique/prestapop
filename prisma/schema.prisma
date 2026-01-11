@@ -7,25 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============ AUTH (NextAuth) ============
-
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          Role      @default(COMPANY)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  accounts      Account[]
-  sessions      Session[]
-  company       Company?
-  driverProfile DriverProfile?
-  reviews       Review[]
+  id               String         @id @default(cuid())
+  name             String?
+  email            String         @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             Role           @default(USER)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  rejectionReason  String?
+  status           UserStatus     @default(ACTIVE)
+  verificationDocs Json?
+  verifiedById     String?
+  accounts         Account[]
+  company          Company?
+  documents        Document[]
+  driverProfile    DriverProfile?
+  reviews          Review[]
+  sessions         Session[]
+  verifiedBy             User?                 @relation("VerifiedByAdmin", fields: [verifiedById], references: [id])
+  verifiedUsers          User[]                @relation("VerifiedByAdmin")
+  verificationRequests   VerificationRequest[]
+  verificationDocuments  VerificationDoc[]
+  // Messagerie
+  conversations    ConversationParticipant[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -36,15 +45,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -55,8 +63,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -70,178 +77,120 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-// ============ BUSINESS MODELS ============
+model VerificationRequest {
+  id         String                    @id @default(cuid())
+  userId     String
+  docs       Json                      // [{type: 'SIRET', url: 'cloudinary_url', status: 'PENDING|OK'}]
+  adminNotes String?
+  status     VerificationRequestStatus @default(PENDING)
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+  user       User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-enum Role {
-  COMPANY   // Donneur d'ordre (entreprise de transport/logistique)
-  DRIVER    // Chauffeur/livreur indépendant
-  ADMIN
+  @@index([userId])
+  @@index([status])
+  @@map("verification_requests")
 }
 
-enum JobStatus {
-  DRAFT           // Brouillon, pas encore publié
-  OPEN            // Mission ouverte aux candidatures
-  PENDING         // Candidature en attente de validation
-  ASSIGNED        // Chauffeur assigné
-  IN_PROGRESS     // Livraison en cours
-  DELIVERED       // Livré
-  COMPLETED       // Terminé et validé
-  CANCELLED       // Annulé
+model Document {
+  id        String         @id @default(cuid())
+  userId    String
+  type      DocumentType
+  url       String
+  status    DocumentStatus @default(MISSING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("documents")
 }
 
-enum VehicleType {
-  BIKE            // Vélo / vélo cargo
-  SCOOTER         // Scooter / moto
-  CAR             // Voiture
-  VAN             // Utilitaire léger
-  TRUCK           // Camion
+model VerificationDoc {
+  id           String                @id @default(cuid())
+  userId       String
+  documentType DocumentType
+  cloudinaryUrl String
+  status       VerificationDocStatus @default(PENDING)
+  adminNotes   String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentType])
+  @@index([userId])
+  @@index([status])
+  @@map("verification_docs")
 }
-
-enum PackageSize {
-  SMALL           // Petits colis
-  MEDIUM          // Colis moyens
-  LARGE           // Gros colis
-  MIXED           // Mix de tailles
-}
-
-enum VehicleVolume {
-  CUBE_6M         // 6m³
-  CUBE_9M         // 9m³
-  CUBE_12M        // 12m³
-  CUBE_15M        // 15m³
-  CUBE_20M        // 20m³
-}
-
-enum MissionType {
-  DAY             // Journée complète
-  HALF_DAY        // Demi-journée
-  WEEK            // Mission semaine
-}
-
-enum MissionZoneType {
-  URBAN           // Tournées dans la même ville / agglomération
-  CITY_TO_CITY    // Missions ville à ville / inter-urbain
-}
-
-// ============ FEEDBACK & BADGES SYSTEM ============
-
-// Types de bulles de commentaires prédéfinis
-enum FeedbackTag {
-  PUNCTUAL        // Ponctuel
-  CAREFUL         // Soigneux
-  COMMUNICATIVE   // Communicatif
-  FAST            // Rapide
-  PRECISE         // Précis
-  FRIENDLY        // Souriant/Aimable
-  RESOURCEFUL     // Débrouillard
-  RESPONSIVE      // Réactif
-  PROFESSIONAL    // Professionnel
-  RELIABLE        // Fiable
-}
-
-// Badges/récompenses débloqués
-enum BadgeType {
-  PUNCTUALITY_CHAMPION   // 50+ votes Ponctuel
-  CAREFUL_EXPERT         // 50+ votes Soigneux
-  SPEED_DEMON            // 50+ votes Rapide
-  COMMUNICATION_STAR     // 50+ votes Communicatif
-  TOP_10_REGION          // Top 10 de sa région
-  TOP_3_REGION           // Top 3 de sa région
-  FIRST_100_DELIVERIES   // 100 livraisons
-  FIRST_500_DELIVERIES   // 500 livraisons
-  PERFECT_RATING         // Note moyenne 5.0
-  RISING_STAR            // Nouveau chauffeur prometteur
-}
-
-// ============ COMPANY (Donneur d'ordre) ============
 
 model Company {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  companyName   String
-  siret         String?
-  phone         String?
-  address       String?
-  city          String?
-  description   String?  @db.Text
-  logo          String?
-  isVerified    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jobs             Job[]
-  driverFeedbacks  DriverFeedback[]
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  companyName     String
+  siret           String?
+  phone           String?
+  address         String?
+  city            String?
+  description     String?
+  logo            String?
+  isVerified      Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  driverFeedbacks DriverFeedback[]
+  jobs            Job[]
 
   @@map("companies")
 }
 
-// ============ DRIVER (Livreur indépendant) ============
-
 model DriverProfile {
-  id              String      @id @default(cuid())
-  userId          String      @unique
+  id              String           @id @default(cuid())
+  userId          String           @unique
   phone           String?
-  bio             String?     @db.Text
+  bio             String?
   city            String?
-  region          String?     // Région pour classement régional
-  vehicleTypes    VehicleType[]  // Types de véhicules disponibles
+  vehicleTypes    VehicleType[]
   licenseNumber   String?
   insuranceNumber String?
   stripeAccountId String?
-  isVerified      Boolean     @default(false)
-  isAvailable     Boolean     @default(true)
-  rating          Float       @default(0)
-  totalDeliveries Int         @default(0)
-  totalReviews    Int         @default(0)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookings        Booking[]         @relation("DriverBookings")
-  feedbacks       DriverFeedback[]
+  isVerified      Boolean          @default(false)
+  isAvailable     Boolean          @default(true)
+  rating          Float            @default(0)
+  totalDeliveries Int              @default(0)
+  totalReviews    Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  region          String?
+  bookings        Booking[]        @relation("DriverBookings")
   badges          DriverBadge[]
+  feedbacks       DriverFeedback[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   tagStats        DriverTagStats[]
 
   @@map("driver_profiles")
 }
 
-// ============ JOB (Mission de livraison urbaine) ============
-
 model Job {
-  id                String        @id @default(cuid())
-  companyId         String
-  title             String
-  description       String?       @db.Text
-
-  // Type et secteur de mission
-  typeMission       MissionType     @default(DAY)
-  missionZoneType   MissionZoneType @default(URBAN)
-  secteurLivraison  String          // Ex: "Paris 11e, 12e, 20e"
-
-  // Détails colis
-  packageSize       PackageSize   @default(MIXED)
-  nombreColis       Int           // Nombre de colis à livrer
-
-  // Timing
-  startTime         DateTime      // Heure de début de mission
-  estimatedEndTime  DateTime      // Heure de fin estimée
-
-  // Véhicule requis
-  vehicleVolume     VehicleVolume
-  needsTailLift     Boolean       @default(false)  // Hayon élévateur requis
-
-  // Rémunération
-  dayRate           Int           // Tarif journée en centimes
-
-  // Statut
-  status            JobStatus     @default(DRAFT)
-
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  id               String          @id @default(cuid())
+  companyId        String
+  title            String
+  description      String?
+  typeMission      MissionType     @default(DAY)
+  missionZoneType  MissionZoneType @default(URBAN)
+  secteurLivraison String
+  packageSize      PackageSize     @default(MIXED)
+  nombreColis      Int
+  startTime        DateTime
+  estimatedEndTime DateTime
+  vehicleVolume    VehicleVolume
+  needsTailLift    Boolean         @default(false)
+  dayRate          Int
+  status           JobStatus       @default(DRAFT)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  bookings         Booking[]
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([status])
@@ -250,36 +199,26 @@ model Job {
   @@map("jobs")
 }
 
-// ============ BOOKING (Candidature/Attribution) ============
-
 model Booking {
-  id                  String    @id @default(cuid())
+  id                  String          @id @default(cuid())
   jobId               String
   driverId            String
-  status              JobStatus @default(ASSIGNED)
-
-  // Suivi
+  status              JobStatus       @default(ASSIGNED)
   pickedUpAt          DateTime?
   deliveredAt         DateTime?
-  proofOfDelivery     String?   // URL photo/signature
-
-  // Notes
-  driverNotes         String?   @db.Text
-  companyNotes        String?   @db.Text
-
-  // Paiement
-  agreedPrice         Int       // Prix convenu en centimes
+  proofOfDelivery     String?
+  driverNotes         String?
+  companyNotes        String?
+  agreedPrice         Int
   stripePaymentId     String?
   stripePaymentStatus String?
   paidAt              DateTime?
-
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  job            Job             @relation(fields: [jobId], references: [id])
-  driver         DriverProfile   @relation("DriverBookings", fields: [driverId], references: [id])
-  review         Review?
-  driverFeedback DriverFeedback?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  driver              DriverProfile   @relation("DriverBookings", fields: [driverId], references: [id])
+  job                 Job             @relation(fields: [jobId], references: [id])
+  driverFeedback      DriverFeedback?
+  review              Review?
 
   @@unique([jobId, driverId])
   @@index([driverId])
@@ -287,73 +226,217 @@ model Booking {
   @@map("bookings")
 }
 
-// ============ REVIEW ============
-
 model Review {
   id        String   @id @default(cuid())
   bookingId String   @unique
-  userId    String   // Qui a laissé l'avis (company ou driver)
-  rating    Int      // 1-5
-  comment   String?  @db.Text
+  userId    String
+  rating    Int
+  comment   String?
   createdAt DateTime @default(now())
-
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id])
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("reviews")
 }
 
-// ============ DRIVER FEEDBACK & BADGES ============
-
-// Votes/feedbacks donnés par les entreprises après une mission
 model DriverFeedback {
   id        String        @id @default(cuid())
-
-  // Qui vote
-  bookingId String        @unique  // Lié à une réservation terminée
-  booking   Booking       @relation(fields: [bookingId], references: [id])
+  bookingId String        @unique
   companyId String
-  company   Company       @relation(fields: [companyId], references: [id])
-
-  // Pour qui
   driverId  String
-  driver    DriverProfile @relation(fields: [driverId], references: [id])
-
-  // Le vote
-  rating    Int           // Note globale 1-5
-  tags      FeedbackTag[] // Bulles sélectionnées
-  comment   String?       // Commentaire optionnel
-
+  rating    Int
+  tags      FeedbackTag[]
+  comment   String?
   createdAt DateTime      @default(now())
+  booking   Booking       @relation(fields: [bookingId], references: [id])
+  company   Company       @relation(fields: [companyId], references: [id])
+  driver    DriverProfile @relation(fields: [driverId], references: [id])
 
   @@index([driverId])
   @@index([companyId])
   @@map("driver_feedbacks")
 }
 
-// Badges/récompenses débloqués
 model DriverBadge {
-  id       String    @id @default(cuid())
+  id       String        @id @default(cuid())
   driverId String
-  driver   DriverProfile @relation(fields: [driverId], references: [id])
   badge    BadgeType
-  earnedAt DateTime  @default(now())
+  earnedAt DateTime      @default(now())
+  driver   DriverProfile @relation(fields: [driverId], references: [id])
 
   @@unique([driverId, badge])
   @@index([driverId])
   @@map("driver_badges")
 }
 
-// Stats agrégées par tag (pour performance)
 model DriverTagStats {
   id         String        @id @default(cuid())
   driverId   String
-  driver     DriverProfile @relation(fields: [driverId], references: [id])
   tag        FeedbackTag
   count      Int           @default(0)
-  percentage Float         @default(0)  // % des missions avec ce tag
+  percentage Float         @default(0)
+  driver     DriverProfile @relation(fields: [driverId], references: [id])
 
   @@unique([driverId, tag])
   @@index([driverId])
   @@map("driver_tag_stats")
+}
+
+enum Role {
+  COMPANY
+  DRIVER
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING_VERIF
+  VERIFIED
+  REJECTED
+}
+
+enum VerificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  KBIS
+  IDENTITY
+  DRIVER_LICENSE
+  VEHICLE_INSURANCE
+  KBIS_3MONTHS
+  MANAGER_IDENTITY
+  OTHER
+}
+
+enum DocumentStatus {
+  OK
+  MISSING
+  ILLEGIBLE
+}
+
+enum VerificationDocStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  PENDING
+}
+
+enum VehicleType {
+  BIKE
+  SCOOTER
+  CAR
+  VAN
+  TRUCK
+}
+
+enum PackageSize {
+  SMALL
+  MEDIUM
+  LARGE
+  MIXED
+}
+
+enum VehicleVolume {
+  CUBE_6M
+  CUBE_9M
+  CUBE_12M
+  CUBE_15M
+  CUBE_20M
+}
+
+enum MissionType {
+  DAY
+  HALF_DAY
+  WEEK
+}
+
+enum MissionZoneType {
+  URBAN
+  CITY_TO_CITY
+}
+
+enum FeedbackTag {
+  PUNCTUAL
+  CAREFUL
+  COMMUNICATIVE
+  FAST
+  PRECISE
+  FRIENDLY
+  RESOURCEFUL
+  RESPONSIVE
+  PROFESSIONAL
+  RELIABLE
+}
+
+enum BadgeType {
+  PUNCTUALITY_CHAMPION
+  CAREFUL_EXPERT
+  SPEED_DEMON
+  COMMUNICATION_STAR
+  TOP_10_REGION
+  TOP_3_REGION
+  FIRST_100_DELIVERIES
+  FIRST_500_DELIVERIES
+  PERFECT_RATING
+  RISING_STAR
+}
+
+// ========== MESSAGERIE INTERNE ==========
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  lastMessage  DateTime                  @default(now())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessage])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  receiverId     String?
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver       User?        @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("messages")
 }
