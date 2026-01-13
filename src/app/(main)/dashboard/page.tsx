@@ -4,35 +4,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DriverDashboard } from "@/components/dashboard-driver"
-import { CompanyDashboard } from "@/components/dashboard-company"
-
-async function getDriverBookings(driverId: string) {
-  return db.booking.findMany({
-    where: { driverId },
-    include: {
-      job: { include: { company: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  })
-}
-
-async function getCompanyJobs(companyId: string) {
-  return db.job.findMany({
-    where: { companyId },
-    include: {
-      _count: { select: { bookings: true } },
-      bookings: {
-        where: { status: { in: ["ASSIGNED", "IN_PROGRESS"] } },
-        include: { driver: { include: { user: true } } },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  })
-}
+import { Building2, Truck } from "lucide-react"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -55,74 +27,64 @@ export default async function DashboardPage() {
     redirect("/admin/dashboard")
   }
 
-  const isDriver = !!user.driverProfile
-  const isCompany = !!user.company
+  // Redirect to specific dashboard based on role
+  if (user.driverProfile) {
+    redirect("/dashboard/driver")
+  }
 
-  // Fetch data based on role
-  const driverBookings = isDriver ? await getDriverBookings(user.driverProfile!.id) : []
-  const companyJobs = isCompany ? await getCompanyJobs(user.company!.id) : []
+  if (user.company) {
+    redirect("/dashboard/company")
+  }
 
-  // TODO: Replace with actual KBIS fields from database when schema is updated
-  // For now, we simulate the KBIS status (always false until schema is migrated)
-  const hasKbis = false
-  const kbisVerified = false
-
+  // No profile yet - show choice page
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
+      <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold">
-          Bonjour, {user.name || "utilisateur"}
+          Bienvenue sur PrestaPop, {user.name || "utilisateur"}
         </h1>
-        <p className="text-muted-foreground">
-          {isDriver && "Tableau de bord chauffeur-livreur"}
-          {isCompany && "Tableau de bord entreprise"}
-          {!isDriver && !isCompany && "Complétez votre profil pour commencer"}
+        <p className="text-muted-foreground mt-2">
+          Choisissez votre profil pour commencer
         </p>
       </div>
 
-      {/* No profile yet */}
-      {!isDriver && !isCompany && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <h2 className="text-xl font-semibold mb-4">Bienvenue sur PrestaPop !</h2>
-            <p className="text-muted-foreground mb-6">
-              Choisissez votre profil pour commencer
-            </p>
-            <div className="flex gap-4 justify-center">
-              <Link href="/register?type=company">
-                <Button size="lg">Je suis une entreprise</Button>
-              </Link>
-              <Link href="/register?type=driver">
-                <Button size="lg" variant="outline">Je suis chauffeur-livreur</Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        {/* Company Card */}
+        <Link href="/register?type=company">
+          <Card className="cursor-pointer hover:shadow-xl transition-all hover:scale-105 border-2 hover:border-blue-500">
+            <CardContent className="p-8 text-center">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Building2 className="h-10 w-10 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Je suis une entreprise</h2>
+              <p className="text-muted-foreground mb-6">
+                Publiez vos missions de livraison et trouvez des chauffeurs qualifiés
+              </p>
+              <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700">
+                Créer mon compte entreprise
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
 
-      {/* Driver Dashboard */}
-      {isDriver && (
-        <DriverDashboard
-          profile={{
-            totalDeliveries: user.driverProfile!.totalDeliveries,
-            rating: user.driverProfile!.rating,
-          }}
-          bookings={driverBookings}
-          hasKbis={hasKbis}
-          kbisVerified={kbisVerified}
-          userStatus={user.status}
-          isVerified={user.driverProfile!.isVerified}
-        />
-      )}
-
-      {/* Company Dashboard */}
-      {isCompany && (
-        <CompanyDashboard
-          jobs={companyJobs}
-          hasKbis={hasKbis}
-          kbisVerified={kbisVerified}
-        />
-      )}
+        {/* Driver Card */}
+        <Link href="/register?type=driver">
+          <Card className="cursor-pointer hover:shadow-xl transition-all hover:scale-105 border-2 hover:border-emerald-500">
+            <CardContent className="p-8 text-center">
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Truck className="h-10 w-10 text-emerald-600" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Je suis chauffeur-livreur</h2>
+              <p className="text-muted-foreground mb-6">
+                Trouvez des missions de livraison et développez votre activité
+              </p>
+              <Button size="lg" className="w-full bg-emerald-600 hover:bg-emerald-700">
+                Créer mon compte chauffeur
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
     </div>
   )
 }
