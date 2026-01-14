@@ -31,8 +31,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Prisma
-prisma/migrations/
+# Prisma - keep migrations versioned for deployment
 
 # IDE
 .idea
