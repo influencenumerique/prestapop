@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Calendar, Package, PlusCircle, LogIn, UserPlus, Building2, ArrowRight } from "lucide-react"
+import { MapPin, Calendar, Package, PlusCircle, LogIn, UserPlus, Building2, ArrowRight, Zap, Clock } from "lucide-react"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { formatPrice } from "@/lib/utils"
@@ -27,8 +27,13 @@ const zoneTypeLabels: Record<string, string> = {
   CITY_TO_CITY: "Inter-urbain",
 }
 
-async function getJobs(filters: { secteur?: string; vehicleVolume?: string; missionZoneType?: string }) {
+async function getJobs(filters: { secteur?: string; vehicleVolume?: string; missionZoneType?: string; urgent?: string }) {
   const where: any = { status: "OPEN" }
+
+  // Si mode urgent, on filtre uniquement les missions urgentes (bonus > 0)
+  if (filters.urgent === "true") {
+    where.isUrgent = true
+  }
 
   if (filters.secteur) {
     where.secteurLivraison = { contains: filters.secteur, mode: "insensitive" }
@@ -48,7 +53,10 @@ async function getJobs(filters: { secteur?: string; vehicleVolume?: string; miss
       company: { include: { user: true } },
       _count: { select: { bookings: true } },
     },
-    orderBy: [{ startTime: "asc" }, { createdAt: "desc" }],
+    // En mode urgent, trier par bonus décroissant puis par date
+    orderBy: filters.urgent === "true"
+      ? [{ urgentBonus: "desc" }, { dayRate: "desc" }, { startTime: "asc" }]
+      : [{ isUrgent: "desc" }, { startTime: "asc" }, { createdAt: "desc" }],
     take: 50,
   })
   return jobs
@@ -57,9 +65,10 @@ async function getJobs(filters: { secteur?: string; vehicleVolume?: string; miss
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ secteur?: string; vehicleVolume?: string; missionZoneType?: string }>
+  searchParams: Promise<{ secteur?: string; vehicleVolume?: string; missionZoneType?: string; urgent?: string }>
 }) {
   const params = await searchParams
+  const isUrgentMode = params.urgent === "true"
   const jobs = await getJobs(params)
 
   // Check user status
@@ -81,7 +90,42 @@ export default async function JobsPage({
     <div className="container mx-auto py-8 px-4">
       {/* Header */}
       <div className="mb-8">
-        {isCompany ? (
+        {isUrgentMode ? (
+          // Mode URGENT - Header spécial
+          <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-xl p-6 mb-6 text-white">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-white/20 rounded-full animate-pulse">
+                <Zap className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold">Missions URGENTES</h1>
+            </div>
+            <p className="text-white/90 mb-4">
+              Ces missions nécessitent un chauffeur rapidement et offrent un <span className="font-bold">bonus supplémentaire</span> !
+            </p>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full">
+                <Clock className="h-4 w-4" />
+                Départ imminent
+              </div>
+              <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full">
+                <Zap className="h-4 w-4" />
+                Bonus jusqu&apos;à +100€
+              </div>
+            </div>
+            {!isLoggedIn && (
+              <div className="mt-6 pt-4 border-t border-white/20">
+                <p className="text-sm text-white/80 mb-3">Inscrivez-vous pour postuler à ces missions bien payées</p>
+                <Link href="/register?type=driver">
+                  <Button variant="secondary" className="gap-2 font-bold">
+                    <UserPlus className="h-4 w-4" />
+                    M&apos;inscrire gratuitement
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : isCompany ? (
           <>
             <div className="flex justify-between items-start">
               <div>
@@ -105,27 +149,19 @@ export default async function JobsPage({
                 : "Découvrez les opportunités de livraison près de chez vous"}
             </p>
             {!isLoggedIn && (
-              <div className="flex flex-wrap gap-3">
-                <Link href="/register?type=driver">
-                  <Button className="gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    Inscription chauffeur gratuite
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button variant="outline" className="gap-2">
-                    <LogIn className="h-4 w-4" />
-                    Connexion
-                  </Button>
-                </Link>
-              </div>
+              <Link href="/register?type=driver">
+                <Button className="gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Inscription chauffeur gratuite
+                </Button>
+              </Link>
             )}
           </>
         )}
       </div>
 
-      {/* CTA Banner pour visiteurs */}
-      {!isLoggedIn && (
+      {/* CTA Banner pour visiteurs - seulement si pas en mode urgent */}
+      {!isLoggedIn && !isUrgentMode && (
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -173,7 +209,18 @@ export default async function JobsPage({
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {jobs.map((job) => (
           <Link key={job.id} href={`/jobs/${job.id}`}>
-            <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
+            <Card className={`overflow-hidden hover:shadow-lg transition-shadow h-full relative ${
+              job.isUrgent ? 'border-2 border-orange-500/50 hover:border-orange-500' : ''
+            }`}>
+              {/* Badge URGENT */}
+              {job.isUrgent && (
+                <div className="absolute top-3 right-3 z-10">
+                  <Badge className="bg-gradient-to-r from-orange-500 to-red-600 text-white border-0 px-2 py-1 font-bold shadow-lg shadow-red-500/30">
+                    <Zap className="h-3 w-3 mr-1" />
+                    +{job.urgentBonus || 50}€
+                  </Badge>
+                </div>
+              )}
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   {isLoggedIn ? (
@@ -214,9 +261,15 @@ export default async function JobsPage({
                     <Badge variant="outline">{volumeLabels[job.vehicleVolume]}</Badge>
                     <Badge variant="outline">{missionTypeLabels[job.typeMission]}</Badge>
                   </div>
-                  <span className="text-lg font-bold text-primary">
-                    {formatPrice(job.dayRate)}
-                  </span>
+                  <div className={`text-right px-3 py-1.5 rounded-lg ${
+                    job.isUrgent
+                      ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
+                      : 'bg-primary/10'
+                  }`}>
+                    <span className={`text-lg font-bold ${job.isUrgent ? 'text-white' : 'text-primary'}`}>
+                      {formatPrice(job.dayRate + (job.urgentBonus || 0) * 100)}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -189,6 +189,8 @@ model Job {
   vehicleVolume    VehicleVolume
   needsTailLift    Boolean         @default(false)
   dayRate          Int
+  isUrgent         Boolean         @default(false)
+  urgentBonus      Int             @default(0)
   status           JobStatus       @default(DRAFT)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

@@ -135,8 +135,14 @@ function PricingContent() {
   const driverPlans = plans.filter((p) => p.targetRole === "DRIVER")
   const companyPlans = plans.filter((p) => p.targetRole === "COMPANY")
 
-  // Déterminer l'onglet par défaut selon le rôle
-  const defaultTab = session?.user?.role === "COMPANY" ? "company" : "driver"
+  // Déterminer le rôle de l'utilisateur connecté
+  const userRole = session?.user?.role
+  const isDriver = userRole === "DRIVER"
+  const isCompany = userRole === "COMPANY"
+  const isLoggedIn = !!session?.user
+
+  // Onglet par défaut selon le rôle
+  const defaultTab = isCompany ? "company" : "driver"
 
   if (loading) {
     return (
@@ -150,7 +156,7 @@ function PricingContent() {
   }
 
   return (
-    <div className="container max-w-6xl py-12">
+    <div className="container max-w-6xl mx-auto py-12">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">
@@ -187,99 +193,196 @@ function PricingContent() {
         </Label>
       </div>
 
-      {/* Tabs Chauffeurs / Entreprises */}
-      <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
-          <TabsTrigger value="driver" className="gap-2">
-            <Truck className="h-4 w-4" />
-            Chauffeurs
-          </TabsTrigger>
-          <TabsTrigger value="company" className="gap-2">
-            <Building2 className="h-4 w-4" />
-            Entreprises
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="driver">
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Plan Gratuit Chauffeur */}
-            <PricingCard
-              plan={{
-                id: "free-driver",
-                name: "Gratuit",
-                slug: "driver-free",
-                description: "Pour commencer",
-                tier: "FREE",
-                targetRole: "DRIVER",
-                priceMonthly: 0,
-                priceYearly: 0,
-                maxMissionsPerMonth: null,
-                maxApplicationsPerMonth: 3,
-                commissionRate: 0.15,
-                features: {},
-                isPopular: false,
-              }}
-              isCurrentPlan={!currentSubscription || currentSubscription.tier === "FREE"}
-              billingInterval={billingInterval}
-              onSelect={() => {}}
-              loading={false}
-            />
-
-            {driverPlans
-              .filter((p) => p.tier !== "FREE")
-              .map((plan) => (
-                <PricingCard
-                  key={plan.id}
-                  plan={plan}
-                  isCurrentPlan={currentSubscription?.planId === plan.id}
-                  billingInterval={billingInterval}
-                  onSelect={() => handleSelectPlan(plan.id)}
-                  loading={selectedPlanId === plan.id}
-                />
-              ))}
+      {/* Affichage conditionnel selon le rôle */}
+      {isLoggedIn ? (
+        // Utilisateur connecté : afficher uniquement les plans de son rôle
+        <div className="w-full">
+          {/* Titre selon le rôle */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {isDriver ? (
+              <>
+                <Truck className="h-5 w-5 text-emerald-500" />
+                <span className="text-lg font-medium">Plans Chauffeur</span>
+              </>
+            ) : (
+              <>
+                <Building2 className="h-5 w-5 text-blue-500" />
+                <span className="text-lg font-medium">Plans Entreprise</span>
+              </>
+            )}
           </div>
-        </TabsContent>
 
-        <TabsContent value="company">
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Plan Gratuit Entreprise */}
-            <PricingCard
-              plan={{
-                id: "free-company",
-                name: "Gratuit",
-                slug: "company-free",
-                description: "Pour essayer",
-                tier: "FREE",
-                targetRole: "COMPANY",
-                priceMonthly: 0,
-                priceYearly: 0,
-                maxMissionsPerMonth: 1,
-                maxApplicationsPerMonth: null,
-                commissionRate: 0.15,
-                features: {},
-                isPopular: false,
-              }}
-              isCurrentPlan={!currentSubscription || currentSubscription.tier === "FREE"}
-              billingInterval={billingInterval}
-              onSelect={() => {}}
-              loading={false}
-            />
+          {isDriver ? (
+            // Plans Chauffeur
+            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <PricingCard
+                plan={{
+                  id: "free-driver",
+                  name: "Gratuit",
+                  slug: "driver-free",
+                  description: "Pour commencer",
+                  tier: "FREE",
+                  targetRole: "DRIVER",
+                  priceMonthly: 0,
+                  priceYearly: 0,
+                  maxMissionsPerMonth: null,
+                  maxApplicationsPerMonth: 3,
+                  commissionRate: 0.15,
+                  features: {},
+                  isPopular: false,
+                }}
+                isCurrentPlan={!currentSubscription || currentSubscription.tier === "FREE"}
+                billingInterval={billingInterval}
+                onSelect={() => {}}
+                loading={false}
+              />
 
-            {companyPlans
-              .filter((p) => p.tier !== "FREE")
-              .map((plan) => (
-                <PricingCard
-                  key={plan.id}
-                  plan={plan}
-                  isCurrentPlan={currentSubscription?.planId === plan.id}
-                  billingInterval={billingInterval}
-                  onSelect={() => handleSelectPlan(plan.id)}
-                  loading={selectedPlanId === plan.id}
-                />
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+              {driverPlans
+                .filter((p) => p.tier !== "FREE")
+                .map((plan) => (
+                  <PricingCard
+                    key={plan.id}
+                    plan={plan}
+                    isCurrentPlan={currentSubscription?.planId === plan.id}
+                    billingInterval={billingInterval}
+                    onSelect={() => handleSelectPlan(plan.id)}
+                    loading={selectedPlanId === plan.id}
+                  />
+                ))}
+            </div>
+          ) : (
+            // Plans Entreprise
+            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <PricingCard
+                plan={{
+                  id: "free-company",
+                  name: "Gratuit",
+                  slug: "company-free",
+                  description: "Pour essayer",
+                  tier: "FREE",
+                  targetRole: "COMPANY",
+                  priceMonthly: 0,
+                  priceYearly: 0,
+                  maxMissionsPerMonth: 1,
+                  maxApplicationsPerMonth: null,
+                  commissionRate: 0.15,
+                  features: {},
+                  isPopular: false,
+                }}
+                isCurrentPlan={!currentSubscription || currentSubscription.tier === "FREE"}
+                billingInterval={billingInterval}
+                onSelect={() => {}}
+                loading={false}
+              />
+
+              {companyPlans
+                .filter((p) => p.tier !== "FREE")
+                .map((plan) => (
+                  <PricingCard
+                    key={plan.id}
+                    plan={plan}
+                    isCurrentPlan={currentSubscription?.planId === plan.id}
+                    billingInterval={billingInterval}
+                    onSelect={() => handleSelectPlan(plan.id)}
+                    loading={selectedPlanId === plan.id}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        // Utilisateur non connecté : afficher les tabs
+        <Tabs defaultValue={defaultTab} className="w-full">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+            <TabsTrigger value="driver" className="gap-2">
+              <Truck className="h-4 w-4" />
+              Chauffeurs
+            </TabsTrigger>
+            <TabsTrigger value="company" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Entreprises
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="driver">
+            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <PricingCard
+                plan={{
+                  id: "free-driver",
+                  name: "Gratuit",
+                  slug: "driver-free",
+                  description: "Pour commencer",
+                  tier: "FREE",
+                  targetRole: "DRIVER",
+                  priceMonthly: 0,
+                  priceYearly: 0,
+                  maxMissionsPerMonth: null,
+                  maxApplicationsPerMonth: 3,
+                  commissionRate: 0.15,
+                  features: {},
+                  isPopular: false,
+                }}
+                isCurrentPlan={false}
+                billingInterval={billingInterval}
+                onSelect={() => {}}
+                loading={false}
+              />
+
+              {driverPlans
+                .filter((p) => p.tier !== "FREE")
+                .map((plan) => (
+                  <PricingCard
+                    key={plan.id}
+                    plan={plan}
+                    isCurrentPlan={false}
+                    billingInterval={billingInterval}
+                    onSelect={() => handleSelectPlan(plan.id)}
+                    loading={selectedPlanId === plan.id}
+                  />
+                ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="company">
+            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <PricingCard
+                plan={{
+                  id: "free-company",
+                  name: "Gratuit",
+                  slug: "company-free",
+                  description: "Pour essayer",
+                  tier: "FREE",
+                  targetRole: "COMPANY",
+                  priceMonthly: 0,
+                  priceYearly: 0,
+                  maxMissionsPerMonth: 1,
+                  maxApplicationsPerMonth: null,
+                  commissionRate: 0.15,
+                  features: {},
+                  isPopular: false,
+                }}
+                isCurrentPlan={false}
+                billingInterval={billingInterval}
+                onSelect={() => {}}
+                loading={false}
+              />
+
+              {companyPlans
+                .filter((p) => p.tier !== "FREE")
+                .map((plan) => (
+                  <PricingCard
+                    key={plan.id}
+                    plan={plan}
+                    isCurrentPlan={false}
+                    billingInterval={billingInterval}
+                    onSelect={() => handleSelectPlan(plan.id)}
+                    loading={selectedPlanId === plan.id}
+                  />
+                ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* FAQ */}
       <div className="mt-16 text-center">

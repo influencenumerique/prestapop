@@ -49,7 +49,7 @@ interface UsageData {
   applicationsLimit: number | null
   missionsUsed: number
   missionsLimit: number | null
-  tier: string
+  tier: "FREE" | "PRO" | "BUSINESS" | "ENTERPRISE"
   commissionRate: number
 }
 

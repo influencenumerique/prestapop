@@ -41,9 +41,6 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Link href="/jobs" className="text-sm lg:text-base font-medium hover:text-primary whitespace-nowrap">
-                  Missions
-                </Link>
                 <Link href="/jobs?urgent=true" className="animate-urgent-pulse">
                   <span className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-600 text-white text-sm lg:text-base font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-500/30 hover:scale-105 transition-transform whitespace-nowrap">
                     <span>🚨</span>

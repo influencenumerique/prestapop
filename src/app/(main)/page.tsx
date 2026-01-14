@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Search, Truck, MapPin, Package, Clock, ArrowRight, Users, Plus } from "lucide-react"
+import { Search, Truck, MapPin, Package, Clock, ArrowRight, Users, Plus, Navigation, Zap, TrendingUp, Eye } from "lucide-react"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { type FeedbackTag } from "@/components/driver-feedback-tags"
@@ -39,6 +39,8 @@ const featuredJobs = [
     typeMission: "DAY",
     company: "LogiExpress",
     startTime: new Date().toISOString(),
+    isUrgent: true,
+    urgentBonus: 50,
   },
   {
     id: "demo-job-2",
@@ -51,6 +53,7 @@ const featuredJobs = [
     typeMission: "DAY",
     company: "TransportPro",
     startTime: new Date().toISOString(),
+    isUrgent: false,
   },
   {
     id: "demo-job-3",
@@ -63,6 +66,7 @@ const featuredJobs = [
     typeMission: "DAY",
     company: "FreshLog",
     startTime: new Date().toISOString(),
+    isUrgent: false,
   },
 ]
 
@@ -444,6 +448,260 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ============================================= */}
+      {/* SECTION MISSIONS DISPONIBLES - En premier */}
+      {/* ============================================= */}
+      <section className="py-16 px-4 bg-gradient-to-b from-emerald-50 to-white dark:from-emerald-950/30 dark:to-background">
+        <div className="container mx-auto">
+          {/* Header centré */}
+          <div className="text-center mb-10">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700">
+                <Package className="h-3 w-3 mr-1" />
+                Missions disponibles
+              </Badge>
+              {/* Indicateur temps réel */}
+              <div className="flex items-center gap-2 bg-red-500/10 text-red-600 dark:text-red-400 px-3 py-1 rounded-full text-sm font-medium">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                3 missions urgentes
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold mb-2">Gagnez de l&apos;argent dès aujourd&apos;hui</h2>
+            <p className="text-muted-foreground">Postulez maintenant - places limitées</p>
+          </div>
+
+          {/* Grille des 3 missions */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {featuredJobs.map((job, index) => (
+              <Link key={job.id} href={userRole === "guest" ? "/register?type=driver" : `/jobs/${job.id}`}>
+                <Card className={`overflow-hidden hover:shadow-xl transition-all h-full group border-2 relative ${
+                  job.isUrgent ? 'border-red-500/50 hover:border-red-500' : 'border-transparent hover:border-emerald-500'
+                }`}>
+                  {/* Badge URGENT */}
+                  {job.isUrgent && (
+                    <div className="absolute top-3 right-3 z-10 animate-urgent-pulse">
+                      <Badge className="bg-gradient-to-r from-orange-500 to-red-600 text-white border-0 px-3 py-1.5 font-bold shadow-lg shadow-red-500/50">
+                        <Zap className="h-3 w-3 mr-1" />
+                        URGENT +{job.urgentBonus}€
+                      </Badge>
+                    </div>
+                  )}
+
+                  {/* Badge position */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <Badge variant="secondary" className="bg-white/90 dark:bg-slate-800/90 font-bold">
+                      #{index + 1}
+                    </Badge>
+                  </div>
+
+                  <CardContent className="p-6 pt-12">
+                    <div className="flex items-start justify-between mb-4">
+                      <Badge
+                        className="text-sm px-3 py-1.5 font-semibold"
+                        variant={job.missionZoneType === "URBAN" ? "default" : "destructive"}
+                      >
+                        {job.missionZoneType === "URBAN" ? (
+                          <>
+                            <MapPin className="h-3.5 w-3.5 mr-1" />
+                            URBAIN
+                          </>
+                        ) : (
+                          <>
+                            <Truck className="h-3.5 w-3.5 mr-1" />
+                            INTER-URBAIN
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+
+                    <h3 className="font-bold text-lg line-clamp-2 mb-4 group-hover:text-emerald-600 transition-colors">
+                      {job.title}
+                    </h3>
+
+                    <div className="space-y-2.5 text-sm mb-5">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{job.secteurLivraison}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span>{job.nombreColis} colis</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span>Départ: {new Date(job.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-end pt-4 border-t">
+                      <Badge variant="outline" className="font-medium">
+                        {volumeLabels[job.vehicleVolume]}
+                      </Badge>
+                      <div className={`text-right px-4 py-2 rounded-lg shadow-lg transition-all ${
+                        job.isUrgent
+                          ? 'bg-gradient-to-r from-orange-500 to-red-600 shadow-red-500/30 scale-105'
+                          : 'bg-gradient-to-r from-emerald-500 to-green-600'
+                      } text-white`}>
+                        <div className="text-[10px] uppercase tracking-wide opacity-90">Gagnez</div>
+                        <span className="text-2xl font-black">
+                          {(job.dayRate / 100 + (job.urgentBonus || 0)).toFixed(0)}€
+                        </span>
+                        <div className="text-[10px] opacity-90">/jour</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          {/* CTA unique - Uniquement pour les visiteurs */}
+          {userRole === "guest" && (
+            <div className="text-center">
+              <Link href="/register?type=driver">
+                <Button size="lg" className="gap-2 bg-emerald-600 hover:bg-emerald-700 font-bold px-10 py-6 text-lg">
+                  <Navigation className="h-5 w-5" />
+                  Voir les missions autour de moi
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+              <p className="text-sm text-muted-foreground mt-3">
+                Inscription gratuite - Commencez à gagner aujourd&apos;hui
+              </p>
+            </div>
+          )}
+
+          {/* Pour les chauffeurs connectés */}
+          {userRole === "driver" && (
+            <div className="text-center">
+              <Link href="/jobs">
+                <Button size="lg" className="gap-2 bg-emerald-600 hover:bg-emerald-700 font-bold px-10">
+                  Voir toutes les missions
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Social Proof - Témoignages */}
+      <section className="py-16 px-4 bg-gradient-to-b from-slate-900 to-slate-800">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-yellow-500/20 border-yellow-500/30 text-yellow-300" variant="outline">
+              <span className="mr-1">🚀</span>
+              RÉSULTATS RÉELS
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              Ils ont optimisé leurs livraisons
+            </h2>
+            <p className="text-slate-400 max-w-2xl mx-auto">
+              Découvrez comment nos clients ont amélioré leur logistique avec PrestaPop
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {/* Témoignage 1 - Économies */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-500/50 transition-all hover:shadow-xl hover:shadow-yellow-500/10 group">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-yellow-400 text-lg">★</span>
+                    ))}
+                  </div>
+                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
+                    -35%
+                  </Badge>
+                </div>
+                <blockquote className="text-slate-200 mb-4 text-sm leading-relaxed">
+                  &quot;PrestaPop nous a fait économiser <span className="text-yellow-400 font-bold">35% sur nos livraisons urgentes</span>.
+                  La flexibilité des chauffeurs indépendants est un vrai plus.&quot;
+                </blockquote>
+                <div className="flex items-center gap-3 pt-4 border-t border-slate-700">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold">
+                    EC
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white text-sm">ExpressColis</div>
+                    <div className="text-xs text-slate-400">E-commerce • 1 semaine</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Témoignage 2 - Missions complétées */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-500/50 transition-all hover:shadow-xl hover:shadow-yellow-500/10 group">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-yellow-400 text-lg">★</span>
+                    ))}
+                  </div>
+                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
+                    150 missions
+                  </Badge>
+                </div>
+                <blockquote className="text-slate-200 mb-4 text-sm leading-relaxed">
+                  &quot;<span className="text-yellow-400 font-bold">150 missions complétées en 7 jours</span>.
+                  Interface simple, paiements rapides. Exactement ce qu&apos;il nous fallait.&quot;
+                </blockquote>
+                <div className="flex items-center gap-3 pt-4 border-t border-slate-700">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold">
+                    TP
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white text-sm">Transporteur Pro</div>
+                    <div className="text-xs text-slate-400">Transport • 1 semaine</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Témoignage 3 - CA Commissions */}
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-yellow-500/50 transition-all hover:shadow-xl hover:shadow-yellow-500/10 group">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-yellow-400 text-lg">★</span>
+                    ))}
+                  </div>
+                  <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 text-xs">
+                    +12K€
+                  </Badge>
+                </div>
+                <blockquote className="text-slate-200 mb-4 text-sm leading-relaxed">
+                  &quot;<span className="text-yellow-400 font-bold">CA +12K€ en commissions</span> en une semaine.
+                  Les chauffeurs sont réactifs et les clients satisfaits.&quot;
+                </blockquote>
+                <div className="flex items-center gap-3 pt-4 border-t border-slate-700">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                    LT
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white text-sm">LogiTrans</div>
+                    <div className="text-xs text-slate-400">Logistique • 1 semaine</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Trust badge */}
+          <div className="text-center mt-12">
+            <p className="text-slate-400 text-sm">
+              <span className="text-yellow-400 font-semibold">+200 entreprises</span> nous font confiance
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Types de zones de mission */}
       <section className="py-16 px-4">
         <div className="container mx-auto">
@@ -594,126 +852,58 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Featured Jobs - pour chauffeurs */}
-      <section className="py-16 px-4 bg-gradient-to-b from-green-50 to-white dark:from-green-950/20 dark:to-background">
+      {/* Comment ça marche - Pour chauffeurs */}
+      <section className="py-16 px-4 bg-gradient-to-b from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background">
         <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
-            <div>
-              <Badge className="mb-2 bg-green-100 text-green-700 border-green-300">
-                <Package className="h-3 w-3 mr-1" />
-                Pour les chauffeurs
-              </Badge>
-              <h2 className="text-3xl font-bold">Missions disponibles</h2>
-              <p className="text-muted-foreground">Postulez et gagnez de l&apos;argent</p>
-            </div>
-            <Link href="/jobs">
-              <Button variant="default" className="gap-2 bg-green-600 hover:bg-green-700">
-                Voir toutes les missions
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700">
+              <Package className="h-3 w-3 mr-1" />
+              Pour les chauffeurs
+            </Badge>
+            <h2 className="text-3xl font-bold mb-2">Comment devenir chauffeur PrestaPop ?</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Inscription gratuite en 2 minutes, commencez à gagner de l&apos;argent dès aujourd&apos;hui
+            </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredJobs.map((job) => (
-              <Link key={job.id} href={`/jobs/${job.id}`}>
-                <Card className="overflow-hidden hover:shadow-lg transition-all h-full group border hover:border-primary">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <Badge
-                        className="text-sm px-3 py-1.5 font-semibold"
-                        variant={job.missionZoneType === "URBAN" ? "default" : "destructive"}
-                      >
-                        {job.missionZoneType === "URBAN" ? (
-                          <>
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            URBAIN
-                          </>
-                        ) : (
-                          <>
-                            <Truck className="h-3.5 w-3.5 mr-1" />
-                            INTER-URBAIN
-                          </>
-                        )}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">Entreprise verifiee</Badge>
-                    </div>
-
-                    <h3 className="font-bold text-lg line-clamp-2 mb-4 group-hover:text-primary transition-colors">
-                      {job.title}
-                    </h3>
-
-                    <div className="space-y-2.5 text-sm mb-5">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                        <span className="line-clamp-2">{job.secteurLivraison}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span>{job.nombreColis} colis</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span>Départ: {new Date(job.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-end pt-4 border-t">
-                      <Badge variant="outline" className="font-medium">
-                        {volumeLabels[job.vehicleVolume]}
-                      </Badge>
-                      <div className="text-right bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg">
-                        <div className="text-[10px] uppercase tracking-wide opacity-90">Gagnez</div>
-                        <span className="text-2xl font-black">
-                          {(job.dayRate / 100).toFixed(0)}€
-                        </span>
-                        <div className="text-[10px] opacity-90">/jour</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+          <div className="grid md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-lg mx-auto mb-4">1</div>
+              <h3 className="font-semibold mb-2">Inscrivez-vous</h3>
+              <p className="text-sm text-muted-foreground">Créez votre profil gratuitement</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-lg mx-auto mb-4">2</div>
+              <h3 className="font-semibold mb-2">Trouvez des missions</h3>
+              <p className="text-sm text-muted-foreground">Parcourez les offres près de vous</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-lg mx-auto mb-4">3</div>
+              <h3 className="font-semibold mb-2">Postulez</h3>
+              <p className="text-sm text-muted-foreground">Candidatez en un clic</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-lg mx-auto mb-4">4</div>
+              <h3 className="font-semibold mb-2">Soyez payé</h3>
+              <p className="text-sm text-muted-foreground">Paiement rapide sous 24h</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA Final */}
       {userRole === "guest" && (
-        <section className="py-20 px-4 bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground">
+        <section className="py-16 px-4 bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground">
           <div className="container mx-auto text-center">
-            <Badge className="mb-4 bg-white/20 border-white/30 text-white" variant="outline">
-              <Truck className="h-3 w-3 mr-1" />
-              Rejoignez la communauté PrestaPop
-            </Badge>
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">Prêt à démarrer ?</h2>
-            <p className="text-lg mb-10 max-w-2xl mx-auto opacity-90">
-              Que vous soyez entreprise ou chauffeur-livreur indépendant,
-              <br />
-              optimisez vos livraisons urbaines et inter-urbaines dès maintenant.
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Prêt à démarrer ?</h2>
+            <p className="text-lg mb-8 max-w-xl mx-auto opacity-90">
+              Inscription gratuite en 2 minutes
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link href="/register?type=company">
-                <Button size="lg" variant="secondary" className="w-full sm:w-auto gap-2 px-8">
-                  <Truck className="h-5 w-5" />
-                  Je suis une entreprise
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/register?type=driver">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary gap-2 px-8"
-                >
-                  <Package className="h-5 w-5" />
-                  Je suis chauffeur-livreur
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-            <p className="mt-8 text-sm opacity-75">
-              Inscription gratuite - Aucune carte bancaire requise
-            </p>
+            <Link href="/register">
+              <Button size="lg" variant="secondary" className="gap-2 px-10 font-bold">
+                Créer mon compte
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </section>
       )}

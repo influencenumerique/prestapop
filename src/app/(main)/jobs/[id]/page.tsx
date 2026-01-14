@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MapPin, Calendar, Clock, Package, Truck, Building2, ArrowRight, XCircle, LogIn } from "lucide-react"
+import { MapPin, Calendar, Clock, Package, Truck, Building2, ArrowRight, XCircle, LogIn, Users } from "lucide-react"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { formatPrice } from "@/lib/utils"
 import { LaunchMissionButton } from "@/components/launch-mission-button"
 import { ApplyMissionButton } from "@/components/apply-mission-button"
+import { CancelMissionButton } from "./cancel-mission-button"
+import { ViewCandidatesButton } from "./view-candidates-button"
+import { LiveTrackingSection } from "./live-tracking-section"
 
 const volumeLabels: Record<string, string> = {
   CUBE_6M: "6m³",
@@ -126,6 +129,17 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               </div>
             </div>
           </div>
+
+          {/* Live Tracking Section - Only visible for IN_PROGRESS missions */}
+          {job.status === "IN_PROGRESS" && acceptedBooking && userRole !== "guest" && (
+            <LiveTrackingSection
+              bookingId={acceptedBooking.id}
+              jobStatus={job.status}
+              userRole={userRole as "owner" | "driver"}
+              driverName={acceptedBooking.driver.user.name || "Chauffeur"}
+              deliverySector={job.secteurLivraison}
+            />
+          )}
 
           {/* Secteur */}
           <Card>
@@ -245,20 +259,15 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               {job.status === "OPEN" ? (
                 <>
                   {userRole === "owner" ? (
-                    // Company owner - can cancel
+                    // Company owner - can cancel and view candidates
                     <div className="space-y-3">
-                      <Button variant="destructive" className="w-full gap-2" size="lg">
-                        <XCircle className="h-4 w-4" />
-                        Annuler cette mission
-                      </Button>
+                      {job.bookings.length > 0 && (
+                        <ViewCandidatesButton jobId={job.id} />
+                      )}
+                      <CancelMissionButton jobId={job.id} />
                       <p className="text-xs text-center text-muted-foreground">
                         {job.bookings.length} candidature(s) reçue(s)
                       </p>
-                      {job.bookings.length > 0 && (
-                        <Button variant="outline" className="w-full" size="sm">
-                          Voir les candidatures
-                        </Button>
-                      )}
                     </div>
                   ) : userRole === "driver" ? (
                     // Driver - can apply with availability check

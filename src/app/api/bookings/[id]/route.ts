@@ -2,6 +2,16 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { z } from "zod"
 import { requireAuth, isDriver, isCompanyOwner } from "@/lib/api-auth"
+import Pusher from "pusher"
+
+// Pusher server instance for tracking events
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.PUSHER_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.PUSHER_CLUSTER!,
+  useTLS: true,
+})
 
 const updateBookingSchema = z.object({
   status: z.enum(["ASSIGNED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "CANCELLED"]).optional(),
@@ -130,6 +140,25 @@ export async function PATCH(
         driver: { include: { user: true } },
       },
     })
+
+    // Trigger Pusher events for tracking status changes
+    if (data.status === "IN_PROGRESS" && booking.status !== "IN_PROGRESS") {
+      // Mission started - notify for tracking
+      await pusher.trigger(`booking-${id}`, "tracking-started", {
+        bookingId: id,
+        driverId: booking.driverId,
+        driverName: updatedBooking.driver.user.name,
+        startTime: new Date().toISOString(),
+      })
+    }
+
+    if (data.status === "DELIVERED" && booking.status === "IN_PROGRESS") {
+      // Mission delivered - stop tracking
+      await pusher.trigger(`booking-${id}`, "tracking-stopped", {
+        bookingId: id,
+        deliveredAt: new Date().toISOString(),
+      })
+    }
 
     // Si livré, incrémenter le compteur du driver
     if (data.status === "COMPLETED") {

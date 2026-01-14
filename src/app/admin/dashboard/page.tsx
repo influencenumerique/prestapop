@@ -534,8 +534,8 @@ export default function AdminDashboard() {
           </div>
           {loading ? (
             <div className="h-48 flex items-end justify-between gap-2">
-              {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} className="w-full bg-slate-700" style={{ height: `${Math.random() * 100 + 50}px` }} />
+              {[80, 120, 60, 100, 90, 110, 75, 95].map((height, i) => (
+                <Skeleton key={i} className="w-full bg-slate-700" style={{ height: `${height}px` }} />
               ))}
             </div>
           ) : stats?.jobsPerWeek && stats.jobsPerWeek.length > 0 ? (
