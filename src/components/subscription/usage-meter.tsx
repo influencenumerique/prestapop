@@ -32,14 +32,13 @@ export function UsageMeter({
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center text-sm">
-        <span className="font-medium">{label}</span>
+        <span className="font-medium text-white">{label}</span>
         <span className={cn(
-          "tabular-nums",
-          isAtLimit && "text-red-600 font-semibold",
-          isNearLimit && !isAtLimit && "text-yellow-600"
+          "tabular-nums font-semibold",
+          isAtLimit ? "text-red-400" : isNearLimit ? "text-yellow-400" : "text-gray-300"
         )}>
           {isUnlimited ? (
-            <span className="text-green-600">Illimité</span>
+            <span className="text-emerald-400">Illimité</span>
           ) : (
             `${current}/${max}`
           )}
@@ -47,7 +46,7 @@ export function UsageMeter({
       </div>
 
       {!isUnlimited && (
-        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-slate-600 rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full rounded-full transition-all duration-300",
@@ -59,18 +58,18 @@ export function UsageMeter({
       )}
 
       {isAtLimit && showUpgradeLink && (
-        <p className="text-xs text-red-600">
+        <p className="text-xs text-red-400">
           Limite atteinte.{" "}
-          <a href="/pricing" className="underline font-medium hover:text-red-700">
+          <a href="/pricing" className="underline font-medium hover:text-red-300">
             Passez à Pro
           </a>
         </p>
       )}
 
       {isNearLimit && !isAtLimit && showUpgradeLink && (
-        <p className="text-xs text-yellow-600">
+        <p className="text-xs text-yellow-400">
           Vous approchez de la limite.{" "}
-          <a href="/pricing" className="underline font-medium hover:text-yellow-700">
+          <a href="/pricing" className="underline font-medium hover:text-yellow-300">
             Voir les plans
           </a>
         </p>
