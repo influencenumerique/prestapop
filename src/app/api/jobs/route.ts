@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { z } from "zod"
 import { requireAuth, requireRole } from "@/lib/api-auth"
+import { checkMissionLimit, incrementMissionUsage } from "@/lib/subscription-limits"
 
 const createJobSchema = z.object({
   title: z.string().min(5).max(100),
@@ -130,6 +131,20 @@ export async function POST(req: Request) {
       )
     }
 
+    // Vérifier la limite de missions selon l'abonnement
+    const limitCheck = await checkMissionLimit(user.id)
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          upgradeUrl: limitCheck.upgradeUrl,
+          remaining: limitCheck.remaining,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
+      )
+    }
+
     const body = await req.json()
     const data = createJobSchema.parse(body)
 
@@ -143,6 +158,9 @@ export async function POST(req: Request) {
         company: { include: { user: true } },
       },
     })
+
+    // Incrémenter le compteur d'usage si l'utilisateur a un abonnement
+    await incrementMissionUsage(user.id)
 
     return NextResponse.json(job)
   } catch (error) {

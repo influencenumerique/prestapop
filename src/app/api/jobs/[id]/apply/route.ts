@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { z } from "zod"
 import { requireRole } from "@/lib/api-auth"
+import { checkApplicationLimit, incrementApplicationUsage } from "@/lib/subscription-limits"
 
 const applySchema = z.object({
   proposedPrice: z.number().optional(),
@@ -72,6 +73,20 @@ export async function POST(
       )
     }
 
+    // Vérifier la limite de candidatures selon l'abonnement
+    const limitCheck = await checkApplicationLimit(user.id)
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          upgradeUrl: limitCheck.upgradeUrl,
+          remaining: limitCheck.remaining,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
+      )
+    }
+
     const body = await req.json()
     const data = applySchema.parse(body)
 
@@ -89,6 +104,9 @@ export async function POST(
         driver: { include: { user: true } },
       },
     })
+
+    // Incrémenter le compteur d'usage si l'utilisateur a un abonnement
+    await incrementApplicationUsage(user.id)
 
     return NextResponse.json(booking)
   } catch (error) {

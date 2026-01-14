@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Search, User, LogOut, PlusCircle } from "lucide-react"
+import { Search, User, LogOut, PlusCircle, Sparkles } from "lucide-react"
 
 export function Navbar() {
   const { data: session } = useSession()
@@ -44,11 +44,18 @@ export function Navbar() {
                 <Link href="/jobs" className="text-sm lg:text-base font-medium hover:text-primary whitespace-nowrap">
                   Missions
                 </Link>
-                <Link href="/jobs?urgent=true" className="text-sm lg:text-base font-medium text-orange-500 hover:text-orange-600 font-semibold whitespace-nowrap">
-                  Urgentes
+                <Link href="/jobs?urgent=true" className="animate-urgent-pulse">
+                  <span className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-600 text-white text-sm lg:text-base font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-500/30 hover:scale-105 transition-transform whitespace-nowrap">
+                    <span>🚨</span>
+                    URGENT
+                  </span>
                 </Link>
               </>
             )}
+            <Link href="/pricing" className="text-sm lg:text-base font-medium hover:text-primary flex items-center gap-1 whitespace-nowrap">
+              <Sparkles className="h-4 w-4" />
+              Tarifs
+            </Link>
           </nav>
         </div>
 

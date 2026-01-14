@@ -21,12 +21,15 @@ model User {
   status           UserStatus     @default(ACTIVE)
   verificationDocs Json?
   verifiedById     String?
+  // Stripe
+  stripeCustomerId String?        @unique
   accounts         Account[]
   company          Company?
   documents        Document[]
   driverProfile    DriverProfile?
   reviews          Review[]
   sessions         Session[]
+  subscription     Subscription?
   verifiedBy             User?                 @relation("VerifiedByAdmin", fields: [verifiedById], references: [id])
   verifiedUsers          User[]                @relation("VerifiedByAdmin")
   verificationRequests   VerificationRequest[]
@@ -200,10 +203,10 @@ model Job {
 }
 
 model Booking {
-  id                  String          @id @default(cuid())
+  id                  String           @id @default(cuid())
   jobId               String
   driverId            String
-  status              JobStatus       @default(ASSIGNED)
+  status              JobStatus        @default(ASSIGNED)
   pickedUpAt          DateTime?
   deliveredAt         DateTime?
   proofOfDelivery     String?
@@ -213,12 +216,18 @@ model Booking {
   stripePaymentId     String?
   stripePaymentStatus String?
   paidAt              DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  driver              DriverProfile   @relation("DriverBookings", fields: [driverId], references: [id])
-  job                 Job             @relation(fields: [jobId], references: [id])
+  // GPS Tracking fields
+  pickupLatitude      Float?
+  pickupLongitude     Float?
+  deliveryLatitude    Float?
+  deliveryLongitude   Float?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  driver              DriverProfile    @relation("DriverBookings", fields: [driverId], references: [id])
+  job                 Job              @relation(fields: [jobId], references: [id])
   driverFeedback      DriverFeedback?
   review              Review?
+  locationUpdates     LocationUpdate[]
 
   @@unique([jobId, driverId])
   @@index([driverId])
@@ -439,4 +448,142 @@ model Message {
   @@index([senderId])
   @@index([receiverId])
   @@map("messages")
+}
+
+// ========== GPS TRACKING ==========
+
+model LocationUpdate {
+  id        String   @id @default(cuid())
+  bookingId String
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+  speed     Float?
+  heading   Float?
+  timestamp DateTime @default(now())
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, timestamp])
+  @@map("location_updates")
+}
+
+// ========== SYSTÈME D'ABONNEMENT ==========
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  UNPAID
+  PAUSED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+model SubscriptionPlan {
+  id                      String           @id @default(cuid())
+  name                    String
+  slug                    String           @unique
+  description             String?
+  tier                    SubscriptionTier
+  targetRole              Role
+  priceMonthly            Int              // Prix en centimes (990 = 9,90€)
+  priceYearly             Int              // Prix en centimes
+  stripePriceIdMonthly    String?
+  stripePriceIdYearly     String?
+  stripeProductId         String?
+  maxMissionsPerMonth     Int?             // null = illimité
+  maxApplicationsPerMonth Int?             // null = illimité
+  commissionRate          Float            @default(0.15)
+  features                Json             // Features additionnelles en JSON
+  isPopular               Boolean          @default(false)
+  sortOrder               Int              @default(0)
+  isActive                Boolean          @default(true)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  subscriptions           Subscription[]
+
+  @@index([targetRole, isActive])
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                        String             @id @default(cuid())
+  userId                    String             @unique
+  planId                    String
+  stripeCustomerId          String
+  stripeSubscriptionId      String             @unique
+  status                    SubscriptionStatus @default(INCOMPLETE)
+  billingInterval           BillingInterval    @default(MONTHLY)
+  currentPeriodStart        DateTime
+  currentPeriodEnd          DateTime
+  cancelAtPeriodEnd         Boolean            @default(false)
+  canceledAt                DateTime?
+  endedAt                   DateTime?
+  trialStart                DateTime?
+  trialEnd                  DateTime?
+  missionsUsedThisMonth     Int                @default(0)
+  applicationsUsedThisMonth Int                @default(0)
+  usagePeriodStart          DateTime           @default(now())
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  user                      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  invoices                  Invoice[]
+
+  @@index([stripeSubscriptionId])
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id               String       @id @default(cuid())
+  subscriptionId   String
+  stripeInvoiceId  String       @unique
+  amountDue        Int
+  amountPaid       Int
+  currency         String       @default("eur")
+  status           String
+  periodStart      DateTime
+  periodEnd        DateTime
+  dueDate          DateTime?
+  paidAt           DateTime?
+  hostedInvoiceUrl String?
+  invoicePdf       String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  subscription     Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model StripeWebhookEvent {
+  id            String    @id @default(cuid())
+  stripeEventId String    @unique
+  type          String
+  data          Json
+  processed     Boolean   @default(false)
+  processedAt   DateTime?
+  error         String?
+  createdAt     DateTime  @default(now())
+
+  @@index([type, processed])
+  @@index([stripeEventId])
+  @@map("stripe_webhook_events")
 }

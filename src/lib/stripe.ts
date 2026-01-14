@@ -154,3 +154,180 @@ export async function transferToDriver(
     metadata,
   })
 }
+
+// ========== FONCTIONS D'ABONNEMENT ==========
+
+/**
+ * Crée ou récupère un Customer Stripe pour un utilisateur
+ */
+export async function getOrCreateStripeCustomer(
+  userId: string,
+  email: string,
+  name?: string
+): Promise<string> {
+  const client = getStripeClient()
+
+  // Chercher un customer existant par email
+  const existingCustomers = await client.customers.list({
+    email,
+    limit: 1,
+  })
+
+  if (existingCustomers.data.length > 0) {
+    return existingCustomers.data[0].id
+  }
+
+  // Créer un nouveau customer
+  const customer = await client.customers.create({
+    email,
+    name: name || undefined,
+    metadata: {
+      userId,
+    },
+  })
+
+  return customer.id
+}
+
+/**
+ * Crée une session Checkout pour un abonnement
+ */
+export async function createSubscriptionCheckout(
+  customerId: string,
+  priceId: string,
+  successUrl: string,
+  cancelUrl: string,
+  metadata: Record<string, string>
+): Promise<Stripe.Checkout.Session> {
+  const client = getStripeClient()
+
+  return client.checkout.sessions.create({
+    customer: customerId,
+    mode: 'subscription',
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata,
+    subscription_data: {
+      metadata,
+    },
+    allow_promotion_codes: true,
+    billing_address_collection: 'auto',
+    locale: 'fr',
+  })
+}
+
+/**
+ * Crée une session du portail client Stripe pour gérer l'abonnement
+ */
+export async function createCustomerPortalSession(
+  customerId: string,
+  returnUrl: string
+): Promise<Stripe.BillingPortal.Session> {
+  const client = getStripeClient()
+
+  return client.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+  })
+}
+
+/**
+ * Récupère les détails d'un abonnement Stripe
+ */
+export async function getStripeSubscription(
+  subscriptionId: string
+): Promise<Stripe.Subscription> {
+  const client = getStripeClient()
+  return client.subscriptions.retrieve(subscriptionId)
+}
+
+/**
+ * Annule un abonnement à la fin de la période en cours
+ */
+export async function cancelSubscriptionAtPeriodEnd(
+  subscriptionId: string
+): Promise<Stripe.Subscription> {
+  const client = getStripeClient()
+  return client.subscriptions.update(subscriptionId, {
+    cancel_at_period_end: true,
+  })
+}
+
+/**
+ * Réactive un abonnement qui était prévu pour être annulé
+ */
+export async function reactivateSubscription(
+  subscriptionId: string
+): Promise<Stripe.Subscription> {
+  const client = getStripeClient()
+  return client.subscriptions.update(subscriptionId, {
+    cancel_at_period_end: false,
+  })
+}
+
+/**
+ * Change l'abonnement vers un autre plan
+ */
+export async function changeSubscriptionPlan(
+  subscriptionId: string,
+  newPriceId: string
+): Promise<Stripe.Subscription> {
+  const client = getStripeClient()
+
+  // Récupérer l'abonnement actuel
+  const subscription = await client.subscriptions.retrieve(subscriptionId)
+
+  // Mettre à jour vers le nouveau plan
+  return client.subscriptions.update(subscriptionId, {
+    items: [
+      {
+        id: subscription.items.data[0].id,
+        price: newPriceId,
+      },
+    ],
+    proration_behavior: 'create_prorations',
+  })
+}
+
+/**
+ * Annule immédiatement un abonnement
+ */
+export async function cancelSubscriptionImmediately(
+  subscriptionId: string
+): Promise<Stripe.Subscription> {
+  const client = getStripeClient()
+  return client.subscriptions.cancel(subscriptionId)
+}
+
+/**
+ * Récupère les factures d'un customer
+ */
+export async function getCustomerInvoices(
+  customerId: string,
+  limit: number = 10
+): Promise<Stripe.Invoice[]> {
+  const client = getStripeClient()
+  const invoices = await client.invoices.list({
+    customer: customerId,
+    limit,
+  })
+  return invoices.data
+}
+
+/**
+ * Vérifie la signature d'un webhook Stripe
+ */
+export function constructWebhookEvent(
+  payload: string | Buffer,
+  signature: string,
+  webhookSecret: string
+): Stripe.Event {
+  const client = getStripeClient()
+  return client.webhooks.constructEvent(payload, signature, webhookSecret)
+}

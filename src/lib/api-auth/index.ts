@@ -20,6 +20,7 @@ export interface AuthenticatedUser {
   email: string | null
   name: string | null
   role: Role
+  stripeCustomerId?: string | null
   company?: {
     id: string
     companyName: string
@@ -112,6 +113,7 @@ export async function getAuthenticatedUser(
     email: user.email,
     name: user.name,
     role: user.role as Role,
+    stripeCustomerId: user.stripeCustomerId,
     company: user.company,
     driverProfile: user.driverProfile,
   }

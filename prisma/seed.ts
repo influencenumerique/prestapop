@@ -432,6 +432,110 @@ async function main() {
 
   console.log('Created conversation 2: Admin <-> Pending Driver')
 
+  // ============ PLANS D'ABONNEMENT ============
+
+  // Plans Chauffeurs
+  await prisma.subscriptionPlan.upsert({
+    where: { slug: 'driver-pro' },
+    update: {},
+    create: {
+      name: 'Driver Pro',
+      slug: 'driver-pro',
+      description: 'Pour les chauffeurs actifs',
+      tier: 'PRO',
+      targetRole: 'DRIVER',
+      priceMonthly: 990, // 9,90€
+      priceYearly: 9900, // 99€ (2 mois offerts)
+      maxApplicationsPerMonth: null, // Illimité
+      commissionRate: 0.10, // 10%
+      features: {
+        badge: true,
+        priority: true,
+        alerts: true,
+      },
+      isPopular: true,
+      sortOrder: 1,
+      isActive: true,
+    },
+  })
+
+  await prisma.subscriptionPlan.upsert({
+    where: { slug: 'driver-business' },
+    update: {},
+    create: {
+      name: 'Driver Business',
+      slug: 'driver-business',
+      description: 'Pour les pros de la livraison',
+      tier: 'BUSINESS',
+      targetRole: 'DRIVER',
+      priceMonthly: 1490, // 14,90€
+      priceYearly: 14900, // 149€
+      maxApplicationsPerMonth: null, // Illimité
+      commissionRate: 0.07, // 7%
+      features: {
+        badge: true,
+        priority: true,
+        alerts: true,
+        analytics: true,
+        support: 'priority',
+      },
+      isPopular: false,
+      sortOrder: 2,
+      isActive: true,
+    },
+  })
+
+  // Plans Entreprises
+  await prisma.subscriptionPlan.upsert({
+    where: { slug: 'company-pro' },
+    update: {},
+    create: {
+      name: 'Company Pro',
+      slug: 'company-pro',
+      description: 'Pour les PME actives',
+      tier: 'PRO',
+      targetRole: 'COMPANY',
+      priceMonthly: 1990, // 19,90€
+      priceYearly: 19900, // 199€
+      maxMissionsPerMonth: 10,
+      commissionRate: 0.12, // 12%
+      features: {
+        analytics: true,
+        multiUsers: 3,
+      },
+      isPopular: true,
+      sortOrder: 1,
+      isActive: true,
+    },
+  })
+
+  await prisma.subscriptionPlan.upsert({
+    where: { slug: 'company-enterprise' },
+    update: {},
+    create: {
+      name: 'Enterprise',
+      slug: 'company-enterprise',
+      description: 'Pour les grandes entreprises',
+      tier: 'ENTERPRISE',
+      targetRole: 'COMPANY',
+      priceMonthly: 2990, // 29,90€
+      priceYearly: 29900, // 299€
+      maxMissionsPerMonth: null, // Illimité
+      commissionRate: 0.08, // 8%
+      features: {
+        analytics: true,
+        multiUsers: -1, // Illimité
+        support: 'dedicated',
+        api: true,
+      },
+      isPopular: false,
+      sortOrder: 2,
+      isActive: true,
+    },
+  })
+
+  console.log('Created subscription plans')
+
   console.log('Seed completed successfully!')
 }
 
