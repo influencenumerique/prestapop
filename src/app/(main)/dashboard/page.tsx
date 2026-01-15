@@ -50,7 +50,7 @@ export default async function DashboardPage() {
 
       <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {/* Company Card */}
-        <Link href="/register?type=company">
+        <Link href="/onboarding/company">
           <Card className="cursor-pointer hover:shadow-xl transition-all hover:scale-105 border-2 hover:border-blue-500">
             <CardContent className="p-8 text-center">
               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
         </Link>
 
         {/* Driver Card */}
-        <Link href="/register?type=driver">
+        <Link href="/onboarding/driver">
           <Card className="cursor-pointer hover:shadow-xl transition-all hover:scale-105 border-2 hover:border-emerald-500">
             <CardContent className="p-8 text-center">
               <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
