@@ -140,6 +140,8 @@ function PricingContent() {
   const isDriver = userRole === "DRIVER"
   const isCompany = userRole === "COMPANY"
   const isLoggedIn = !!session?.user
+  // Si l'utilisateur est connecté mais n'a pas encore de profil (rôle USER), montrer les tabs
+  const hasProfile = isDriver || isCompany
 
   // Onglet par défaut selon le rôle
   const defaultTab = isCompany ? "company" : "driver"
@@ -194,8 +196,8 @@ function PricingContent() {
       </div>
 
       {/* Affichage conditionnel selon le rôle */}
-      {isLoggedIn ? (
-        // Utilisateur connecté : afficher uniquement les plans de son rôle
+      {hasProfile ? (
+        // Utilisateur avec profil : afficher uniquement les plans de son rôle
         <div className="w-full">
           {/* Titre selon le rôle */}
           <div className="flex items-center justify-center gap-2 mb-8">
