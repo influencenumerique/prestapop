@@ -27,6 +27,14 @@ const REGIONS = [
   "Corse",
 ]
 
+const VEHICLE_VOLUMES = [
+  { value: "CUBE_6M", label: "6 m³", description: "Petit utilitaire (Kangoo, Berlingo)" },
+  { value: "CUBE_9M", label: "9 m³", description: "Utilitaire moyen (Trafic court)" },
+  { value: "CUBE_12M", label: "12 m³", description: "Utilitaire long (Trafic L2H2)" },
+  { value: "CUBE_15M", label: "15 m³", description: "Grand utilitaire (Master)" },
+  { value: "CUBE_20M", label: "20 m³", description: "Très grand utilitaire (Iveco Daily)" },
+]
+
 export default function DriverOnboardingPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -36,6 +44,7 @@ export default function DriverOnboardingPage() {
   const [phone, setPhone] = useState("")
   const [city, setCity] = useState("")
   const [region, setRegion] = useState("")
+  const [vehicleVolume, setVehicleVolume] = useState("")
 
   // Legal checkboxes
   const [acceptCGU, setAcceptCGU] = useState(false)
@@ -57,6 +66,11 @@ export default function DriverOnboardingPage() {
       return
     }
 
+    if (!vehicleVolume) {
+      setError("Veuillez sélectionner le volume de votre véhicule.")
+      return
+    }
+
     setLoading(true)
     setError("")
 
@@ -68,6 +82,7 @@ export default function DriverOnboardingPage() {
           phone,
           city,
           region,
+          vehicleVolume,
           acceptedTerms: true,
           acceptedCommission: true,
           acceptedPaymentTerms: true,
@@ -147,6 +162,26 @@ export default function DriverOnboardingPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="vehicleVolume">Volume de votre véhicule</Label>
+                <Select value={vehicleVolume} onValueChange={setVehicleVolume}>
+                  <SelectTrigger id="vehicleVolume">
+                    <SelectValue placeholder="Sélectionnez le volume" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEHICLE_VOLUMES.map((v) => (
+                      <SelectItem key={v.value} value={v.value}>
+                        <span className="font-medium">{v.label}</span>
+                        <span className="text-muted-foreground ml-2">- {v.description}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Vous ne pourrez postuler qu&apos;aux missions compatibles avec votre volume
+                </p>
               </div>
             </div>
 

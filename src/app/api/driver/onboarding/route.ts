@@ -11,12 +11,21 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { phone, city, region, acceptedTerms, acceptedCommission, acceptedPaymentTerms } = body
+    const { phone, city, region, vehicleVolume, acceptedTerms, acceptedCommission, acceptedPaymentTerms } = body
 
     // Validation
-    if (!phone || !city || !region) {
+    if (!phone || !city || !region || !vehicleVolume) {
       return NextResponse.json(
-        { error: "Tous les champs sont requis" },
+        { error: "Tous les champs sont requis (téléphone, ville, région, volume véhicule)" },
+        { status: 400 }
+      )
+    }
+
+    // Validate vehicle volume
+    const validVolumes = ["CUBE_6M", "CUBE_9M", "CUBE_12M", "CUBE_15M", "CUBE_20M"]
+    if (!validVolumes.includes(vehicleVolume)) {
+      return NextResponse.json(
+        { error: "Volume de véhicule invalide" },
         { status: 400 }
       )
     }
@@ -53,6 +62,7 @@ export async function POST(req: NextRequest) {
         phone,
         city,
         region,
+        vehicleVolume,
       },
     })
 

@@ -154,6 +154,7 @@ model DriverProfile {
   bio             String?
   city            String?
   vehicleTypes    VehicleType[]
+  vehicleVolume   VehicleVolume?
   licenseNumber   String?
   insuranceNumber String?
   stripeAccountId String?

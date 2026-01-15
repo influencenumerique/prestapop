@@ -3,11 +3,30 @@ import { db } from "@/lib/db"
 import { z } from "zod"
 import { requireRole } from "@/lib/api-auth"
 import { checkApplicationLimit, incrementApplicationUsage } from "@/lib/subscription-limits"
+import { VehicleVolume } from "@prisma/client"
 
 const applySchema = z.object({
   proposedPrice: z.number().optional(),
   message: z.string().optional(),
 })
+
+// Ordre des volumes (du plus petit au plus grand)
+const VOLUME_ORDER: VehicleVolume[] = ["CUBE_6M", "CUBE_9M", "CUBE_12M", "CUBE_15M", "CUBE_20M"]
+
+const VOLUME_LABELS: Record<VehicleVolume, string> = {
+  CUBE_6M: "6 m³",
+  CUBE_9M: "9 m³",
+  CUBE_12M: "12 m³",
+  CUBE_15M: "15 m³",
+  CUBE_20M: "20 m³",
+}
+
+// Vérifie si le volume du chauffeur est suffisant pour la mission
+function isVehicleVolumeSufficient(driverVolume: VehicleVolume, jobVolume: VehicleVolume): boolean {
+  const driverIndex = VOLUME_ORDER.indexOf(driverVolume)
+  const jobIndex = VOLUME_ORDER.indexOf(jobVolume)
+  return driverIndex >= jobIndex
+}
 
 // POST /api/jobs/[id]/apply - Postuler à une mission (Role.DRIVER only)
 export async function POST(
@@ -57,9 +76,25 @@ export async function POST(
       )
     }
 
-    // Note: La validation du véhicule peut être faite côté DriverProfile
-    // si on ajoute un champ vehicleVolumes au modèle DriverProfile
-    // Pour l'instant, on laisse le chauffeur candidater librement
+    // Vérifier que le chauffeur a un volume de véhicule renseigné
+    if (!driver.vehicleVolume) {
+      return NextResponse.json(
+        { error: "Veuillez renseigner le volume de votre véhicule dans votre profil pour postuler" },
+        { status: 400 }
+      )
+    }
+
+    // Vérifier que le volume du véhicule du chauffeur est suffisant
+    if (!isVehicleVolumeSufficient(driver.vehicleVolume, job.vehicleVolume)) {
+      return NextResponse.json(
+        {
+          error: `Votre véhicule (${VOLUME_LABELS[driver.vehicleVolume]}) est trop petit pour cette mission qui nécessite ${VOLUME_LABELS[job.vehicleVolume]}`,
+          driverVolume: driver.vehicleVolume,
+          requiredVolume: job.vehicleVolume,
+        },
+        { status: 400 }
+      )
+    }
 
     // Vérifier si déjà postulé
     const existingBooking = await db.booking.findUnique({
