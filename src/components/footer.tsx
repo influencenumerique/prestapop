@@ -51,8 +51,8 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/drivers" className="text-muted-foreground hover:text-primary">
-                    Chauffeurs
+                  <Link href="/pricing" className="text-muted-foreground hover:text-primary">
+                    Tarifs
                   </Link>
                 </li>
               </ul>
