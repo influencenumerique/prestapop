@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack --port 3000",
     "dev:fresh": "pkill -f 'next' 2>/dev/null; sleep 1; next dev --turbopack --port 3000",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "echo \"skip lint\""

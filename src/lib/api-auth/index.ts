@@ -41,7 +41,9 @@ export interface AuthenticatedUser {
     phone: string | null
     bio: string | null
     city: string | null
+    region: string | null
     vehicleTypes: string[]
+    vehicleVolume: "CUBE_6M" | "CUBE_9M" | "CUBE_12M" | "CUBE_15M" | "CUBE_20M" | null
     licenseNumber: string | null
     insuranceNumber: string | null
     stripeAccountId: string | null
