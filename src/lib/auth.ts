@@ -68,12 +68,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.sub = user.id
-        // Fetch user role from database
+      }
+
+      // Always fetch current role from database (handles role changes after onboarding)
+      if (token.sub) {
         const dbUser = await db.user.findUnique({
-          where: { id: user.id },
+          where: { id: token.sub },
           include: { company: true, driverProfile: true },
         })
         if (dbUser?.role === "ADMIN") {
