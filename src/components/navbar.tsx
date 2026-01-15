@@ -9,6 +9,8 @@ import { Search, User, LogOut, PlusCircle, Sparkles } from "lucide-react"
 export function Navbar() {
   const { data: session } = useSession()
   const isCompany = session?.user?.role === "COMPANY"
+  const isDriver = session?.user?.role === "DRIVER"
+  const isLoggedIn = !!session?.user
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -33,19 +35,36 @@ export function Navbar() {
                   Trouver un chauffeur
                 </Link>
                 <Link href="/dashboard/create-job">
-                  <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 whitespace-nowrap">
+                  <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
                     <PlusCircle className="h-4 w-4" />
                     Publier mission
                   </Button>
                 </Link>
               </>
-            ) : (
+            ) : isDriver ? (
               <>
+                <Link href="/jobs" className="text-sm lg:text-base font-medium hover:text-emerald-600 flex items-center gap-1 whitespace-nowrap">
+                  <Search className="h-4 w-4" />
+                  Voir les missions
+                </Link>
                 <Link href="/jobs?urgent=true" className="animate-urgent-pulse">
                   <span className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-600 text-white text-sm lg:text-base font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-500/30 hover:scale-105 transition-transform whitespace-nowrap">
-                    <span>🚨</span>
-                    URGENT
+                    🚨 URGENT
                   </span>
+                </Link>
+              </>
+            ) : isLoggedIn ? (
+              <>
+                <Link href="/jobs" className="text-sm lg:text-base font-medium hover:text-primary flex items-center gap-1 whitespace-nowrap">
+                  <Search className="h-4 w-4" />
+                  Missions
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/jobs" className="text-sm lg:text-base font-medium hover:text-primary flex items-center gap-1 whitespace-nowrap">
+                  <Search className="h-4 w-4" />
+                  Missions
                 </Link>
               </>
             )}
