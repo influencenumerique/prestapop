@@ -29,6 +29,16 @@ const createJobSchema = z.object({
   dayRate: z.number().int().min(1000), // Tarif journée en centimes (minimum 10€)
 })
 
+// Tarifs minimums selon le volume du véhicule (en centimes)
+// 10€ d'écart entre 6m³ (120€) et 20m³ (130€)
+const MIN_RATES_BY_VOLUME: Record<string, number> = {
+  CUBE_6M: 12000,   // 120€
+  CUBE_9M: 12250,   // 122,50€
+  CUBE_12M: 12500,  // 125€
+  CUBE_15M: 12750,  // 127,50€
+  CUBE_20M: 13000,  // 130€
+}
+
 // GET /api/jobs - Liste des missions ouvertes
 // Accessible aux DRIVER et COMPANY authentifiés
 export async function GET(req: Request) {
@@ -147,6 +157,19 @@ export async function POST(req: Request) {
 
     const body = await req.json()
     const data = createJobSchema.parse(body)
+
+    // Vérifier que le tarif est au moins égal au minimum pour le volume choisi
+    const minRate = MIN_RATES_BY_VOLUME[data.vehicleVolume] || 12000
+    if (data.dayRate < minRate) {
+      return NextResponse.json(
+        {
+          error: `Le tarif minimum pour un véhicule ${data.vehicleVolume.replace("CUBE_", "").replace("M", " m³")} est de ${(minRate / 100).toFixed(2)}€`,
+          minRate: minRate,
+          providedRate: data.dayRate,
+        },
+        { status: 400 }
+      )
+    }
 
     const job = await db.job.create({
       data: {

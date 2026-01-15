@@ -12,12 +12,18 @@ import { ArrowLeft, Package, Truck, Clock, MapPin, Calendar } from "lucide-react
 import Link from "next/link"
 
 const vehicleVolumeOptions = [
-  { value: "CUBE_6M", label: "6m³", desc: "Petite camionnette" },
-  { value: "CUBE_9M", label: "9m³", desc: "Camionnette standard" },
-  { value: "CUBE_12M", label: "12m³", desc: "Fourgon moyen" },
-  { value: "CUBE_15M", label: "15m³", desc: "Grand fourgon" },
-  { value: "CUBE_20M", label: "20m³", desc: "Camion" },
+  { value: "CUBE_6M", label: "6m³", desc: "Petite camionnette", baseRate: 12000 },
+  { value: "CUBE_9M", label: "9m³", desc: "Camionnette standard", baseRate: 12250 },
+  { value: "CUBE_12M", label: "12m³", desc: "Fourgon moyen", baseRate: 12500 },
+  { value: "CUBE_15M", label: "15m³", desc: "Grand fourgon", baseRate: 12750 },
+  { value: "CUBE_20M", label: "20m³", desc: "Camion", baseRate: 13000 },
 ]
+
+// Récupérer le tarif de base pour un volume donné
+const getBaseRateForVolume = (volume: string) => {
+  const option = vehicleVolumeOptions.find(v => v.value === volume)
+  return option?.baseRate || 12000
+}
 
 const missionTypeOptions = [
   { value: "HALF_DAY", label: "Demi-journée", desc: "4h de livraison" },
@@ -87,7 +93,16 @@ export default function CreateJobPage() {
   }
 
   const updateField = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value }
+
+      // Auto-ajuster le tarif quand le volume change
+      if (field === "vehicleVolume") {
+        newData.dayRate = getBaseRateForVolume(value)
+      }
+
+      return newData
+    })
   }
 
   return (
@@ -264,9 +279,15 @@ export default function CreateJobPage() {
                   >
                     <div className="font-bold text-lg">{option.label}</div>
                     <div className="text-xs text-muted-foreground">{option.desc}</div>
+                    <div className="text-xs text-primary font-medium mt-1">
+                      Min. {(option.baseRate / 100).toFixed(0)}€
+                    </div>
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Le tarif minimum est ajusté selon le volume du véhicule requis
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
