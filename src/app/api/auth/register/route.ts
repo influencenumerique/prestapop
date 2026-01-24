@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { z } from "zod"
+import bcrypt from "bcryptjs"
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -24,14 +25,14 @@ export async function POST(req: Request) {
       )
     }
 
-    // TODO: Hash password with bcrypt
-    // const hashedPassword = await bcrypt.hash(password, 12)
+    // Hash du mot de passe avec bcrypt (10 rounds)
+    const hashedPassword = await bcrypt.hash(password, 10)
 
     const user = await db.user.create({
       data: {
         name,
         email,
-        password, // Replace with hashedPassword in production
+        password: hashedPassword,
       },
     })
 

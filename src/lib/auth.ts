@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
+import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 
 const adapter = PrismaAdapter(db)
@@ -26,10 +27,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        console.log("[AUTH] Attempting login with:", credentials?.email)
-
         if (!credentials?.email || !credentials?.password) {
-          console.log("[AUTH] Missing credentials")
           return null
         }
 
@@ -37,20 +35,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: credentials.email as string },
         })
 
-        console.log("[AUTH] User found:", user?.email, "Password in DB:", user?.password)
-
         if (!user || !user.password) {
-          console.log("[AUTH] User not found or no password")
           return null
         }
 
-        // Simple password check for dev/test (use bcrypt in production)
-        if (credentials.password !== user.password) {
-          console.log("[AUTH] Password mismatch. Input:", credentials.password, "Expected:", user.password)
+        // Vérification sécurisée du mot de passe avec bcrypt
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        )
+
+        if (!isPasswordValid) {
           return null
         }
 
-        console.log("[AUTH] Login successful for:", user.email)
         return {
           id: user.id,
           email: user.email,

@@ -6,7 +6,10 @@ export const metadata: Metadata = {
   title: "PrestaPop - Plateforme de Transport Urbain B2B",
   description: "Connectez votre entreprise avec des chauffeurs-livreurs indépendants qualifiés pour vos missions de livraison urbaine",
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", sizes: "any" }
+    ],
     apple: "/favicon.png",
   },
 }
